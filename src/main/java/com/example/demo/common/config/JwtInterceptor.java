@@ -30,6 +30,10 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        if (isPublicGetRequest(request)) {
+            return true;
+        }
+
         String authHeader = request.getHeader("Authorization");
         if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
             return reject(response, HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
@@ -71,6 +75,21 @@ public class JwtInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    private boolean isPublicGetRequest(HttpServletRequest request) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+
+        String path = request.getRequestURI();
+        return isPathOrChild(path, "/api/books")
+                || isPathOrChild(path, "/api/categories")
+                || isPathOrChild(path, "/api/authors")
+                || isPathOrChild(path, "/api/publishers");
+    }
+
+    private boolean isPathOrChild(String path, String publicPath) {
+        return publicPath.equals(path) || path.startsWith(publicPath + "/");
+    }
     private Long parseUserId(Object value) {
         if (value instanceof Number number) {
             return number.longValue();

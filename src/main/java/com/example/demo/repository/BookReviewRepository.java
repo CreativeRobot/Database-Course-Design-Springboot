@@ -21,6 +21,8 @@ public interface BookReviewRepository extends JpaRepository<BookReview, Long> {
 
     Optional<BookReview> findByOrderItem_Id(Long orderItemId);
 
+    Optional<BookReview> findByIdAndUser_Id(Long reviewId, Long userId);
+
     boolean existsByOrderItem_Id(Long orderItemId);
 
     long countByBook_IdAndStatus(Long bookId, Integer status);

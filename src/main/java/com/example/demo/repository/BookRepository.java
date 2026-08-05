@@ -18,6 +18,8 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     boolean existsByIsbn(String isbn);
 
+    boolean existsByPublisher_Id(Long publisherId);
+
     Page<Book> findByStatus(BookStatus status, Pageable pageable);
 
     Page<Book> findByTitleContainingIgnoreCaseAndStatus(

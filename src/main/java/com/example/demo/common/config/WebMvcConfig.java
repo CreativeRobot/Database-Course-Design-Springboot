@@ -13,6 +13,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Autowired
     private JwtInterceptor jwtInterceptor;
 
+    @Autowired
+    private AdminInterceptor adminInterceptor;
+
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
 
@@ -20,7 +23,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/user/login", "/api/user/register");
+                .excludePathPatterns("/api/auth/login", "/api/auth/register")
+                .order(1);
+
+        registry.addInterceptor(adminInterceptor)
+                .addPathPatterns("/api/admin/**")
+                .order(2);
     }
 
     @Override

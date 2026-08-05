@@ -14,6 +14,8 @@ public interface BookCategoryRepository extends JpaRepository<BookCategory, Book
 
     boolean existsByBook_IdAndCategory_Id(Long bookId, Long categoryId);
 
+    boolean existsByCategory_Id(Long categoryId);
+
     @Transactional
     long deleteByBook_IdAndCategory_Id(Long bookId, Long categoryId);
 

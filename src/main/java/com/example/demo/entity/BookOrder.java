@@ -67,6 +67,9 @@ public class BookOrder {
     private BigDecimal payableAmount;//实付金额
 
     //收货信息
+    @Column(nullable = true)
+    private LocalDateTime expireTime;
+
     @Column(nullable = false, length = 50)
     private String receiverName;
 

@@ -1,15 +1,15 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.Result;
-import com.example.demo.common.utils.JwtUtils;
-import com.example.demo.dto.LoginDTO;
-import com.example.demo.dto.RegisterDTO;
-import com.example.demo.entity.User;
+import com.example.demo.dto.ChangePasswordDTO;
+import com.example.demo.dto.UpdateProfileDTO;
 import com.example.demo.service.UserService;
-import com.example.demo.vo.LoginVo;
+import com.example.demo.vo.UserProfileVo;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,30 +20,23 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private JwtUtils jwtUtils;
-
-    @PostMapping("/login")
-    public Result<LoginVo> login(@Valid @RequestBody LoginDTO loginDTO) {
-        User user = userService.login(loginDTO);
-        return Result.success(createLoginVo(user));
+    @GetMapping("/me")
+    public Result<UserProfileVo> getCurrentUser(@RequestAttribute("userId") Long userId) {
+        return Result.success(userService.getProfile(userId));
     }
 
-    @PostMapping("/register")
-    public Result<LoginVo> register(@Valid @RequestBody RegisterDTO registerDTO) {
-        User user = userService.register(registerDTO);
-        return Result.success(createLoginVo(user));
+    @PutMapping("/me")
+    public Result<UserProfileVo> updateCurrentUser(
+            @RequestAttribute("userId") Long userId,
+            @Valid @RequestBody UpdateProfileDTO updateProfileDTO) {
+        return Result.success(userService.updateProfile(userId, updateProfileDTO));
     }
 
-    private LoginVo createLoginVo(User user) {
-        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), user.getRole().name());
-
-        LoginVo loginVO = new LoginVo();
-        loginVO.setId(user.getId());
-        loginVO.setUsername(user.getUsername());
-        loginVO.setNickname(user.getNickname());
-        loginVO.setRole(user.getRole());
-        loginVO.setToken(token);
-        return loginVO;
+    @PutMapping("/me/password")
+    public Result<Void> changePassword(
+            @RequestAttribute("userId") Long userId,
+            @Valid @RequestBody ChangePasswordDTO changePasswordDTO) {
+        userService.changePassword(userId, changePasswordDTO);
+        return Result.success(null);
     }
 }

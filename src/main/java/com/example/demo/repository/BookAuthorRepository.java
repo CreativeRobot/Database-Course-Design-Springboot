@@ -14,6 +14,8 @@ public interface BookAuthorRepository extends JpaRepository<BookAuthor, BookAuth
 
     boolean existsByBook_IdAndAuthor_Id(Long bookId, Long authorId);
 
+    boolean existsByAuthor_Id(Long authorId);
+
     @Transactional
     long deleteByBook_IdAndAuthor_Id(Long bookId, Long authorId);
 
