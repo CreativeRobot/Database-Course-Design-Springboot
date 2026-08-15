@@ -10,6 +10,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @Slf4j
 @RestControllerAdvice
@@ -39,6 +41,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Void>> handleUnreadableMessage() {
         return ResponseEntity.badRequest()
                 .body(Result.error(HttpStatus.BAD_REQUEST.value(), "请求体格式不正确"));
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<Result<Void>> handleMissingMultipartPart(
+            MissingServletRequestPartException exception) {
+        return ResponseEntity.badRequest()
+                .body(Result.error(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "缺少上传文件字段：" + exception.getRequestPartName()
+                ));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Result<Void>> handleMaxUploadSizeExceeded() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(Result.error(
+                        HttpStatus.PAYLOAD_TOO_LARGE.value(),
+                        "上传文件大小超过限制"
+                ));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

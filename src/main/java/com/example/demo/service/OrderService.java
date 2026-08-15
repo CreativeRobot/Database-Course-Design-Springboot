@@ -53,6 +53,7 @@ import java.util.UUID;
 public class OrderService {
 
     private static final long PAYMENT_TIMEOUT_MINUTES = 30;
+    private static final int MAX_ITEM_QUANTITY = 999;
     private static final BigDecimal MAX_DATABASE_AMOUNT = new BigDecimal("99999999.99");
     private static final DateTimeFormatter ORDER_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
@@ -448,7 +449,9 @@ public class OrderService {
 
         List<CartSelection> selections = new ArrayList<>();
         for (CartItem item : cartItems) {
-            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+            if (item.getQuantity() == null
+                    || item.getQuantity() < 1
+                    || item.getQuantity() > MAX_ITEM_QUANTITY) {
                 throw new BusinessException(HttpStatus.BAD_REQUEST, "购物车商品数量不正确");
             }
             selections.add(new CartSelection(

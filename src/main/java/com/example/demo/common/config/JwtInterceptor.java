@@ -109,6 +109,10 @@ public class JwtInterceptor implements HandlerInterceptor {
             HttpStatus status,
             String message) throws Exception {
         response.setStatus(status.value());
+        if (status == HttpStatus.UNAUTHORIZED) {
+            response.setHeader("WWW-Authenticate", "Bearer");
+            response.setHeader("Cache-Control", "no-store");
+        }
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.getWriter().write(

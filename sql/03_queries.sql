@@ -1,6 +1,7 @@
 -- Typical queries for demonstration and database-course defense.
 
 USE bookstore;
+SET NAMES utf8mb4;
 
 -- 1. Public catalog with publisher and category names.
 SELECT

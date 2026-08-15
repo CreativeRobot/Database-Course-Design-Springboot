@@ -144,6 +144,7 @@ public class BookService {
 
     @Transactional
     public BookDetailVo createBook(BookCreateDTO dto) {
+        validateCreateRequest(dto);
         String isbn = dto.getIsbn().trim();
         if (bookRepository.existsByIsbn(isbn)) {
             throw new BusinessException(HttpStatus.CONFLICT, "该ISBN已存在");
@@ -188,6 +189,7 @@ public class BookService {
 
     @Transactional
     public BookDetailVo updateBook(Long bookId, BookUpdateDTO dto) {
+        validateUpdateRequest(dto);
         Book book = getBookOrThrow(bookId);
 
         if (StringUtils.hasText(dto.getIsbn())) {
@@ -258,6 +260,9 @@ public class BookService {
     /** 管理员手动调整库存，同时写入库存流水 */
     @Transactional
     public BookDetailVo adjustStock(Long bookId, StockAdjustDTO dto) {
+        if (dto == null || dto.getChangeQuantity() == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "库存变动数量不能为空");
+        }
         int change = dto.getChangeQuantity();
         if (change == 0) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "变动数量不能为0");
@@ -282,6 +287,41 @@ public class BookService {
 
     // ==================== 私有辅助方法 ====================
 
+    private void validateCreateRequest(BookCreateDTO dto) {
+        if (dto == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "图书请求不能为空");
+        }
+        if (!StringUtils.hasText(dto.getIsbn())
+                || !StringUtils.hasText(dto.getTitle())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "ISBN和书名不能为空");
+        }
+        if (dto.getPublisherId() == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "出版社不能为空");
+        }
+        if (dto.getAuthorIds() == null || dto.getAuthorIds().isEmpty()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "至少需要一位作者");
+        }
+        if (dto.getStock() != null && dto.getStock() < 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "库存不能为负数");
+        }
+        if (dto.getPages() != null && dto.getPages() < 1) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "页数必须大于0");
+        }
+        validatePrices(dto.getOriginalPrice(), dto.getSalePrice());
+    }
+
+    private void validateUpdateRequest(BookUpdateDTO dto) {
+        if (dto == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "图书更新请求不能为空");
+        }
+        if (dto.getPages() != null && dto.getPages() < 1) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "页数必须大于0");
+        }
+        if (dto.getAuthorIds() != null && dto.getAuthorIds().isEmpty()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "至少需要一位作者");
+        }
+    }
+
     private Pageable buildPageable(int page, int size) {
         if (page < 1) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "页码必须从1开始");
@@ -299,6 +339,12 @@ public class BookService {
     }
 
     private void validatePrices(java.math.BigDecimal originalPrice, java.math.BigDecimal salePrice) {
+        if (originalPrice == null || salePrice == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "原价和售价不能为空");
+        }
+        if (originalPrice.signum() < 0 || salePrice.signum() < 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "价格不能为负数");
+        }
         if (salePrice.compareTo(originalPrice) > 0) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "售价不能高于原价");
         }
@@ -321,6 +367,9 @@ public class BookService {
         Set<Long> uniqueIds = new LinkedHashSet<>(authorIds);
         List<Author> authors = new ArrayList<>();
         for (Long authorId : uniqueIds) {
+            if (authorId == null) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "作者不能为空");
+            }
             authors.add(authorRepository.findById(authorId)
                     .orElseThrow(() -> new BusinessException(
                             HttpStatus.BAD_REQUEST, "作者不存在：" + authorId)));
@@ -335,6 +384,9 @@ public class BookService {
         Set<Long> uniqueIds = new LinkedHashSet<>(categoryIds);
         List<Category> categories = new ArrayList<>();
         for (Long categoryId : uniqueIds) {
+            if (categoryId == null) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "分类不能为空");
+            }
             categories.add(categoryRepository.findById(categoryId)
                     .orElseThrow(() -> new BusinessException(
                             HttpStatus.BAD_REQUEST, "分类不存在：" + categoryId)));

@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -124,6 +125,34 @@ public class ReviewService {
         return toVo(bookReviewRepository.save(review));
     }
 
+    // ==================== 管理端审核 ====================
+
+    @Transactional(readOnly = true)
+    public PageVo<ReviewVo> listAdminReviews(
+            Long bookId, Long userId, Integer status, int page, int size) {
+        validatePositive(bookId, "图书 ID");
+        validatePositive(userId, "用户 ID");
+        if (status != null) {
+            validateStatus(status);
+        }
+        return PageVo.of(bookReviewRepository.searchForAdmin(
+                bookId, userId, status, buildAdminPageable(page, size)
+        ).map(this::toVo));
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewVo getAdminReview(Long reviewId) {
+        return toVo(getReviewOrThrow(reviewId));
+    }
+
+    @Transactional
+    public ReviewVo changeReviewStatus(Long reviewId, Integer status) {
+        validateStatus(status);
+        BookReview review = getReviewOrThrow(reviewId);
+        review.setStatus(status);
+        return toVo(bookReviewRepository.save(review));
+    }
+
     // ==================== 私有辅助方法 ====================
 
     private Pageable buildPageable(int page, int size) {
@@ -135,6 +164,21 @@ public class ReviewService {
                     "每页数量必须在1到" + MAX_PAGE_SIZE + "之间");
         }
         return PageRequest.of(page - 1, size);
+    }
+
+    private Pageable buildAdminPageable(int page, int size) {
+        if (page < 1) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "页码必须从1开始");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "每页数量必须在1到" + MAX_PAGE_SIZE + "之间");
+        }
+        return PageRequest.of(
+                page - 1,
+                size,
+                Sort.by(Sort.Order.desc("createTime"), Sort.Order.desc("id"))
+        );
     }
 
     private void validateCreateRequest(CreateReviewDTO dto) {
@@ -155,6 +199,26 @@ public class ReviewService {
         if (rating < 1 || rating > 5) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "评分必须在1到5之间");
         }
+    }
+
+    private void validateStatus(Integer status) {
+        if (status == null || (status != 0 && status != 1)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "评价状态只能为0或1");
+        }
+    }
+
+    private void validatePositive(Long value, String fieldName) {
+        if (value != null && value <= 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, fieldName + "必须为正数");
+        }
+    }
+
+    private BookReview getReviewOrThrow(Long reviewId) {
+        if (reviewId == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "评价不能为空");
+        }
+        return bookReviewRepository.findById(reviewId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "评价不存在"));
     }
 
     private User getActiveUser(Long userId) {

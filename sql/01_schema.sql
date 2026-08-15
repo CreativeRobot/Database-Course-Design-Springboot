@@ -304,6 +304,7 @@ CREATE TABLE IF NOT EXISTS inventory_log (
     PRIMARY KEY (id),
     KEY idx_inventory_book (book_id),
     KEY idx_inventory_order (order_id),
+    KEY idx_inventory_create_time (create_time),
     CONSTRAINT fk_inventory_book
         FOREIGN KEY (book_id) REFERENCES book (id)
         ON UPDATE CASCADE

@@ -37,4 +37,19 @@ public interface BookReviewRepository extends JpaRepository<BookReview, Long> {
             @Param("bookId") Long bookId,
             @Param("status") Integer status
     );
+
+    @Query("""
+            select review
+            from BookReview review
+            where (:bookId is null or review.book.id = :bookId)
+              and (:userId is null or review.user.id = :userId)
+              and (:status is null or review.status = :status)
+            order by review.createTime desc, review.id desc
+            """)
+    Page<BookReview> searchForAdmin(
+            @Param("bookId") Long bookId,
+            @Param("userId") Long userId,
+            @Param("status") Integer status,
+            Pageable pageable
+    );
 }

@@ -25,7 +25,8 @@ import java.time.LocalDateTime;
         name = "inventory_log",
         indexes = {
                 @Index(name = "idx_inventory_book", columnList = "book_id"),
-                @Index(name = "idx_inventory_order", columnList = "order_id")
+                @Index(name = "idx_inventory_order", columnList = "order_id"),
+                @Index(name = "idx_inventory_create_time", columnList = "create_time")
         }
 )
 @Data

@@ -111,7 +111,6 @@ public interface BookOrderRepository extends JpaRepository<BookOrder, Long> {
             where bookOrder.id = :orderId
               and bookOrder.user.id = :userId
               and bookOrder.status = :expectedStatus
-              and (bookOrder.expireTime is null or bookOrder.expireTime > :paidTime)
             """)
     int cancelPendingOrder(
             @Param("orderId") Long orderId,
@@ -131,6 +130,7 @@ public interface BookOrderRepository extends JpaRepository<BookOrder, Long> {
             where bookOrder.id = :orderId
               and bookOrder.user.id = :userId
               and bookOrder.status = :expectedStatus
+              and (bookOrder.expireTime is null or bookOrder.expireTime > :paidTime)
             """)
     int payPendingOrder(
             @Param("orderId") Long orderId,
