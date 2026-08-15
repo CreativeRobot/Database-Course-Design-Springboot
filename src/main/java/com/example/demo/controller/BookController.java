@@ -26,7 +26,7 @@ public class BookController {
     /**
      * 分页查询在售图书。
      * 可选过滤：keyword（书名模糊）、categoryId、authorId、publisherId，
-     * 同时传入多个时只取优先级最高的一个（keyword > categoryId > authorId > publisherId）。
+     * 支持关键词、分类、作者、出版社、价格区间、库存和排序组合筛选。
      */
     @GetMapping
     public Result<PageVo<BookVo>> listBooks(
@@ -34,10 +34,16 @@ public class BookController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long authorId,
             @RequestParam(required = false) Long publisherId,
+            @RequestParam(required = false) java.math.BigDecimal minPrice,
+            @RequestParam(required = false) java.math.BigDecimal maxPrice,
+            @RequestParam(defaultValue = "false") boolean inStock,
+            @RequestParam(defaultValue = "latest") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return Result.success(bookService.listOnSaleBooks(
-                keyword, categoryId, authorId, publisherId, page, size));
+                keyword, categoryId, authorId, publisherId, minPrice, maxPrice,
+                inStock, sortBy, direction, page, size));
     }
 
     /** 查询在售图书详情，含作者与分类 */

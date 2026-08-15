@@ -15,6 +15,7 @@ import com.example.demo.entity.Category;
 import com.example.demo.entity.InventoryChangeType;
 import com.example.demo.entity.InventoryLog;
 import com.example.demo.entity.Publisher;
+import com.example.demo.entity.OrderItem;
 import com.example.demo.repository.AuthorRepository;
 import com.example.demo.repository.BookAuthorRepository;
 import com.example.demo.repository.BookCategoryRepository;
@@ -30,6 +31,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,27 +82,70 @@ public class BookService {
     @Transactional(readOnly = true)
     public PageVo<BookVo> listOnSaleBooks(
             String keyword, Long categoryId, Long authorId, Long publisherId,
-            int page, int size) {
-        Pageable pageable = buildPageable(page, size);
+            java.math.BigDecimal minPrice, java.math.BigDecimal maxPrice,
+            boolean inStock, String sortBy, String direction, int page, int size) {
+        validatePriceRange(minPrice, maxPrice);
+        Pageable pageable = buildSearchPageable(page, size, sortBy, direction);
+        Specification<Book> spec = (root, query, cb) -> {
+            query.distinct(true);
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("status"), BookStatus.ON_SALE));
+            if (StringUtils.hasText(keyword)) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("title")), pattern));
+            }
+            if (categoryId != null) predicates.add(existsCategory(query, cb, root, categoryId));
+            if (authorId != null) predicates.add(existsAuthor(query, cb, root, authorId));
+            if (publisherId != null) predicates.add(cb.equal(root.get("publisher").get("id"), publisherId));
+            if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("salePrice"), minPrice));
+            if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(root.get("salePrice"), maxPrice));
+            if (inStock) predicates.add(cb.greaterThan(root.get("stock"), 0));
+            if ("sales".equalsIgnoreCase(sortBy)) {
+                var sales = query.subquery(Long.class);
+                var item = sales.from(OrderItem.class);
+                sales.select(cb.sumAsLong(item.get("quantity")));
+                sales.where(cb.equal(item.get("book"), root));
+                query.orderBy(("asc".equalsIgnoreCase(direction) ? cb.asc(cb.coalesce(sales, 0L)) : cb.desc(cb.coalesce(sales, 0L))), cb.desc(root.get("id")));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+        return PageVo.of(bookRepository.findAll(spec, pageable).map(this::toBookVo));
+    }
 
-        Page<Book> books;
-        if (StringUtils.hasText(keyword)) {
-            books = bookRepository.findByTitleContainingIgnoreCaseAndStatus(
-                    keyword.trim(), BookStatus.ON_SALE, pageable);
-        } else if (categoryId != null) {
-            books = bookRepository.findByCategoryIdAndStatus(
-                    categoryId, BookStatus.ON_SALE, pageable);
-        } else if (authorId != null) {
-            books = bookRepository.findByAuthorIdAndStatus(
-                    authorId, BookStatus.ON_SALE, pageable);
-        } else if (publisherId != null) {
-            books = bookRepository.findByPublisher_IdAndStatus(
-                    publisherId, BookStatus.ON_SALE, pageable);
-        } else {
-            books = bookRepository.findByStatus(BookStatus.ON_SALE, pageable);
+    private Predicate existsAuthor(CriteriaQuery<?> query, CriteriaBuilder cb, Root<Book> root, Long authorId) {
+        var subquery = query.subquery(Long.class);
+        var relation = subquery.from(BookAuthor.class);
+        subquery.select(cb.literal(1L));
+        subquery.where(cb.equal(relation.get("book"), root), cb.equal(relation.get("author").get("id"), authorId));
+        return cb.exists(subquery);
+    }
+
+    private Predicate existsCategory(CriteriaQuery<?> query, CriteriaBuilder cb, Root<Book> root, Long categoryId) {
+        var subquery = query.subquery(Long.class);
+        var relation = subquery.from(BookCategory.class);
+        subquery.select(cb.literal(1L));
+        subquery.where(cb.equal(relation.get("book"), root), cb.equal(relation.get("category").get("id"), categoryId));
+        return cb.exists(subquery);
+    }
+
+    private Pageable buildSearchPageable(int page, int size, String sortBy, String direction) {
+        if (page < 1 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "分页参数不合法");
         }
+        Sort.Direction order = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String normalizedSort = sortBy == null ? "latest" : sortBy.toLowerCase();
+        if ("sales".equals(normalizedSort)) return PageRequest.of(page - 1, size);
+        String property = switch (normalizedSort) {
+            case "price" -> "salePrice";
+            default -> "createTime";
+        };
+        return PageRequest.of(page - 1, size, Sort.by(order, property).and(Sort.by(Sort.Direction.DESC, "id")));
+    }
 
-        return PageVo.of(books.map(this::toBookVo));
+    private void validatePriceRange(java.math.BigDecimal min, java.math.BigDecimal max) {
+        if (min != null && min.signum() < 0 || max != null && max.signum() < 0 || min != null && max != null && min.compareTo(max) > 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "价格区间不合法");
+        }
     }
 
     /** 查询在售图书详情（顾客视角，下架图书返回404） */
