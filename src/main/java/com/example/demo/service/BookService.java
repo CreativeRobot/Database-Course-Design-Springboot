@@ -15,7 +15,6 @@ import com.example.demo.entity.Category;
 import com.example.demo.entity.InventoryChangeType;
 import com.example.demo.entity.InventoryLog;
 import com.example.demo.entity.Publisher;
-import com.example.demo.entity.OrderItem;
 import com.example.demo.repository.AuthorRepository;
 import com.example.demo.repository.BookAuthorRepository;
 import com.example.demo.repository.BookCategoryRepository;
@@ -100,13 +99,6 @@ public class BookService {
             if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("salePrice"), minPrice));
             if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(root.get("salePrice"), maxPrice));
             if (inStock) predicates.add(cb.greaterThan(root.get("stock"), 0));
-            if ("sales".equalsIgnoreCase(sortBy)) {
-                var sales = query.subquery(Long.class);
-                var item = sales.from(OrderItem.class);
-                sales.select(cb.sumAsLong(item.get("quantity")));
-                sales.where(cb.equal(item.get("book"), root));
-                query.orderBy(("asc".equalsIgnoreCase(direction) ? cb.asc(cb.coalesce(sales, 0L)) : cb.desc(cb.coalesce(sales, 0L))), cb.desc(root.get("id")));
-            }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
         return PageVo.of(bookRepository.findAll(spec, pageable).map(this::toBookVo));
@@ -134,9 +126,9 @@ public class BookService {
         }
         Sort.Direction order = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
         String normalizedSort = sortBy == null ? "latest" : sortBy.toLowerCase();
-        if ("sales".equals(normalizedSort)) return PageRequest.of(page - 1, size);
         String property = switch (normalizedSort) {
             case "price" -> "salePrice";
+            case "sales" -> "salesCount";
             default -> "createTime";
         };
         return PageRequest.of(page - 1, size, Sort.by(order, property).and(Sort.by(Sort.Direction.DESC, "id")));

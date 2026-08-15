@@ -276,6 +276,9 @@ public class OrderService {
         if (affectedRows == 0) {
             throwCurrentOrderState(userId, orderId, "订单状态已变化，无法确认收货");
         }
+        for (OrderItem item : orderItemRepository.findByOrder_IdOrderByIdAsc(orderId)) {
+            bookRepository.increaseSalesCount(item.getBook().getId(), item.getQuantity());
+        }
         return loadOrderVo(orderId);
     }
 

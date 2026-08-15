@@ -92,4 +92,9 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
             @Param("bookId") Long bookId,
             @Param("quantity") Integer quantity
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("update Book book set book.salesCount = book.salesCount + :quantity where book.id = :bookId")
+    int increaseSalesCount(@Param("bookId") Long bookId, @Param("quantity") Integer quantity);
 }
