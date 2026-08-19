@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
     nickname VARCHAR(30) NULL,
     email VARCHAR(100) NULL,
     phone VARCHAR(20) NULL,
+    avatar_url VARCHAR(500) NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_users_username UNIQUE (username),
     CONSTRAINT chk_users_status CHECK (status IN (0, 1))

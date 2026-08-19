@@ -5,6 +5,7 @@ import com.example.demo.dto.ChangePasswordDTO;
 import com.example.demo.dto.UpdateProfileDTO;
 import com.example.demo.entity.User;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.vo.UploadFileVo;
 import com.example.demo.vo.UserProfileVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UserService {
@@ -20,6 +22,9 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public UserProfileVo getProfile(Long userId) {
@@ -36,6 +41,14 @@ public class UserService {
         user.setNickname(trimToNull(updateProfileDTO.getNickname()));
         user.setEmail(trimToNull(updateProfileDTO.getEmail()));
         user.setPhone(trimToNull(updateProfileDTO.getPhone()));
+        return toProfileVo(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserProfileVo updateAvatar(Long userId, MultipartFile file) {
+        User user = getActiveUser(userId);
+        UploadFileVo upload = fileStorageService.storeAvatar(user.getId(), file);
+        user.setAvatarUrl(upload.getUrl());
         return toProfileVo(userRepository.save(user));
     }
 
@@ -81,6 +94,7 @@ public class UserService {
         userProfileVo.setNickname(user.getNickname());
         userProfileVo.setEmail(user.getEmail());
         userProfileVo.setPhone(user.getPhone());
+        userProfileVo.setAvatarUrl(user.getAvatarUrl());
         userProfileVo.setRole(user.getRole());
         userProfileVo.setStatus(user.getStatus());
         userProfileVo.setCreateTime(user.getCreateTime());

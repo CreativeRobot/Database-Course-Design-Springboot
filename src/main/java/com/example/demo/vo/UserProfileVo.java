@@ -12,6 +12,7 @@ public class UserProfileVo {
     private String nickname;
     private String email;
     private String phone;
+    private String avatarUrl;
     private Role role;
     private Integer status;
     private LocalDateTime createTime;

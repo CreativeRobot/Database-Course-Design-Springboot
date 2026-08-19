@@ -40,10 +40,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] origins = StringUtils.commaDelimitedListToStringArray(allowedOrigins);
         registry.addMapping("/api/**")
-                .allowedOrigins(StringUtils.commaDelimitedListToStringArray(allowedOrigins))
+                .allowedOriginPatterns(origins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
+                .allowCredentials(false)
+                .maxAge(3600);
+        registry.addMapping("/uploads/**")
+                .allowedOriginPatterns(origins)
+                .allowedMethods("GET")
                 .allowCredentials(false)
                 .maxAge(3600);
     }
