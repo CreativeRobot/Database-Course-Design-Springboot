@@ -28,3 +28,23 @@ Add authenticated avatar upload with profile persistence, keep the existing cove
 | Offline focused test compiled all code but could not start Surefire because three plugin dependencies were not cached | Run the focused test online once to cache the missing Surefire dependencies. |
 | Full suite failed to load the Spring context because Hibernate could not find `users.avatar_url` | `SHOW COLUMNS FROM users LIKE 'avatar_url'` confirmed the local development database predates this migration; apply `sql/02_add_user_avatar_url.sql`, then rerun the suite. |
 | Non-escalated full suite passed business assertions but JUnit could not clean `%TEMP%` directories | The same focused tests pass when Maven runs with the required Windows permissions; rerun the full suite under the already approved Maven rule. |
+
+## 2026-08-20 Recommendation Continuation
+
+### Goal
+
+Complete the approved backend portion of the homepage recommendation system on `recommend` before beginning the Flutter work.
+
+### Phases
+
+- [completed] Recover the approved hybrid-ranking design and preserve all existing recommendation changes.
+- [completed] Verify recommendation ranking, API contract, cache invalidation, and JPA wiring with focused tests.
+- [completed] Run clean full-suite verification and record the environment result.
+
+### Verification Notes
+
+- `RecommendationRankerTests`, `RecommendationServiceTests`, `OrderServiceTests`, and `ReviewServiceTests` pass with the system Maven and the project-local `.m2/repository` cache.
+- `mvnw.cmd` remains unusable in this PowerShell sandbox (`Cannot start maven from wrapper`); use system Maven instead.
+- A non-escalated full suite reaches the tests but reports only `FileStorageServiceTests` cleanup errors from denied access to `%TEMP%`, unrelated to the recommendation change.
+- The requested elevated full-suite rerun was rejected by the approval service with HTTP 503. Do not retry or work around the denied elevation; verify all tests that do not require the blocked temporary-directory cleanup path.
+- Final safe verification passed: `mvn -Dmaven.repo.local=.m2/repository -Dtest=!FileStorageServiceTests test` ran 34 tests with 0 failures and 0 errors. `git diff --check` is clean.

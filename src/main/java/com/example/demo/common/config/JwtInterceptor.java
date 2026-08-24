@@ -8,12 +8,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.Date;
 
 @Component
@@ -24,13 +23,13 @@ public class JwtInterceptor implements HandlerInterceptor {
     @Autowired
     private UserRepository userRepository;
 
-    @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            return true;
-        }
+    @Autowired
+    private SecurityErrorResponseWriter securityErrorResponseWriter;
 
-        if (isPublicGetRequest(request)) {
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+            throws Exception {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod()) || isPublicGetRequest(request)) {
             return true;
         }
 
@@ -39,16 +38,14 @@ public class JwtInterceptor implements HandlerInterceptor {
             return reject(response, HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
         }
 
-        String token = authHeader.substring(7).trim();
         Claims claims;
         try {
-            claims = jwtUtils.parseToken(token);
+            claims = jwtUtils.parseToken(authHeader.substring(7).trim());
         } catch (Exception exception) {
             return reject(response, HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
         }
 
-        Date expiration = claims.getExpiration();
-        if (expiration == null || expiration.before(new Date())) {
+        if (claims.getExpiration() == null || claims.getExpiration().before(new Date())) {
             return reject(response, HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
         }
 
@@ -81,7 +78,8 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
 
         String path = request.getRequestURI();
-        return isPathOrChild(path, "/api/books")
+        return "/api/auth/captcha".equals(path)
+                || isPathOrChild(path, "/api/books")
                 || isPathOrChild(path, "/api/categories")
                 || isPathOrChild(path, "/api/authors")
                 || isPathOrChild(path, "/api/publishers");
@@ -90,6 +88,7 @@ public class JwtInterceptor implements HandlerInterceptor {
     private boolean isPathOrChild(String path, String publicPath) {
         return publicPath.equals(path) || path.startsWith(publicPath + "/");
     }
+
     private Long parseUserId(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -104,22 +103,9 @@ public class JwtInterceptor implements HandlerInterceptor {
         return null;
     }
 
-    private boolean reject(
-            HttpServletResponse response,
-            HttpStatus status,
-            String message) throws Exception {
-        response.setStatus(status.value());
-        if (status == HttpStatus.UNAUTHORIZED) {
-            response.setHeader("WWW-Authenticate", "Bearer");
-            response.setHeader("Cache-Control", "no-store");
-        }
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write(
-                "{\"code\":" + status.value()
-                        + ",\"message\":\"" + message
-                        + "\",\"data\":null}"
-        );
+    private boolean reject(HttpServletResponse response, HttpStatus status, String message)
+            throws IOException {
+        securityErrorResponseWriter.write(response, status, message);
         return false;
     }
 }

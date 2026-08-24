@@ -71,6 +71,10 @@ class OrderServiceTests {
     private UserAddressRepository userAddressRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private RecommendationService recommendationService;
+    @Mock
+    private InventoryService inventoryService;
 
     @InjectMocks
     private OrderService orderService;
@@ -234,23 +238,14 @@ class OrderServiceTests {
                 any(LocalDateTime.class))).thenReturn(1);
         when(orderItemRepository.findByOrder_IdOrderByIdAsc(30L))
                 .thenReturn(List.of(item));
-        when(bookRepository.increaseStock(10L, 2)).thenReturn(1);
-        when(bookRepository.findById(10L)).thenReturn(Optional.of(book));
-        when(bookOrderRepository.getReferenceById(30L)).thenReturn(cancelledOrder);
-        when(bookRepository.getReferenceById(10L)).thenReturn(book);
+
         when(bookOrderRepository.findById(30L)).thenReturn(Optional.of(cancelledOrder));
 
         OrderVo result = orderService.cancelOrder(1L, 30L);
 
         assertEquals(OrderStatus.CANCELLED, result.getStatus());
-        verify(bookRepository).increaseStock(10L, 2);
-        verify(inventoryLogRepository).saveAllAndFlush(argThat(logs -> {
-            InventoryLog log = logs.iterator().next();
-            return log.getChangeType() == InventoryChangeType.ORDER_CANCEL_RETURN
-                    && log.getChangeQuantity() == 2
-                    && log.getBeforeStock() == 3
-                    && log.getAfterStock() == 5;
-        }));
+        verify(inventoryService).returnStockAndWriteLogs(30L, pendingOrder.getOrderNo());
+
     }
 
     @Test
@@ -376,6 +371,8 @@ class OrderServiceTests {
         OrderVo result = orderService.completeOrder(1L, 30L);
 
         assertEquals(OrderStatus.COMPLETED, result.getStatus());
+        verify(recommendationService).invalidateAllAfterCommit();
+        verify(inventoryService).increaseSalesCount(List.of());
     }
 
     @Test
@@ -454,18 +451,12 @@ class OrderServiceTests {
                 org.mockito.ArgumentMatchers.eq(OrderStatus.PENDING_PAYMENT),
                 org.mockito.ArgumentMatchers.eq(OrderStatus.CANCELLED),
                 org.mockito.ArgumentMatchers.eq(now))).thenReturn(1);
-        when(orderItemRepository.findByOrder_IdOrderByIdAsc(30L))
-                .thenReturn(List.of(item));
-        when(bookRepository.increaseStock(10L, 2)).thenReturn(1);
-        when(bookRepository.findById(10L)).thenReturn(Optional.of(book));
-        when(bookOrderRepository.getReferenceById(30L)).thenReturn(expiredOrder);
-        when(bookRepository.getReferenceById(10L)).thenReturn(book);
+
 
         int result = orderService.cancelExpiredOrders(now);
 
         assertEquals(1, result);
-        verify(bookRepository).increaseStock(10L, 2);
-        verify(inventoryLogRepository).saveAllAndFlush(any());
+        verify(inventoryService).returnStockAndWriteLogs(30L, expiredOrder.getOrderNo());
     }
 
     @Test

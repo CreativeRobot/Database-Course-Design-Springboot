@@ -19,6 +19,8 @@ public interface BookReviewRepository extends JpaRepository<BookReview, Long> {
 
     List<BookReview> findByUser_IdOrderByCreateTimeDesc(Long userId);
 
+    List<BookReview> findByUser_IdAndStatus(Long userId, Integer status);
+
     Optional<BookReview> findByOrderItem_Id(Long orderItemId);
 
     Optional<BookReview> findByIdAndUser_Id(Long reviewId, Long userId);
@@ -35,6 +37,18 @@ public interface BookReviewRepository extends JpaRepository<BookReview, Long> {
             """)
     Double findAverageRatingByBookId(
             @Param("bookId") Long bookId,
+            @Param("status") Integer status
+    );
+
+    @Query("""
+            select review.book.id, avg(review.rating)
+            from BookReview review
+            where review.book.id in :bookIds
+              and review.status = :status
+            group by review.book.id
+            """)
+    List<Object[]> findAverageRatingsByBookIds(
+            @Param("bookIds") List<Long> bookIds,
             @Param("status") Integer status
     );
 

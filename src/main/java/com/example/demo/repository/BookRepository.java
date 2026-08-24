@@ -40,6 +40,14 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
             BookStatus status
     );
 
+    List<Book> findByStatusAndStockGreaterThan(BookStatus status, Integer stock);
+
+    List<Book> findByStatusAndStockGreaterThanAndIdNotIn(
+            BookStatus status,
+            Integer stock,
+            List<Long> excludedBookIds
+    );
+
     @Query("""
             select bookAuthor.book
             from BookAuthor bookAuthor

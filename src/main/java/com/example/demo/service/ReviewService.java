@@ -48,6 +48,9 @@ public class ReviewService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private RecommendationService recommendationService;
+
     // ==================== 公开与用户查询 ====================
 
     /** 分页查询一本图书的有效评价，同时返回平均分和评价总数。 */
@@ -109,7 +112,9 @@ public class ReviewService {
                 .content(trimToNull(dto.getContent()))
                 .status(ENABLED_STATUS)
                 .build();
-        return toVo(bookReviewRepository.saveAndFlush(review));
+        ReviewVo saved = toVo(bookReviewRepository.saveAndFlush(review));
+        recommendationService.invalidateAllAfterCommit();
+        return saved;
     }
 
     /** 修改当前用户已有评价的评分和内容。 */
@@ -122,7 +127,9 @@ public class ReviewService {
                         HttpStatus.NOT_FOUND, "评价不存在"));
         review.setRating(dto.getRating());
         review.setContent(trimToNull(dto.getContent()));
-        return toVo(bookReviewRepository.save(review));
+        ReviewVo saved = toVo(bookReviewRepository.save(review));
+        recommendationService.invalidateAllAfterCommit();
+        return saved;
     }
 
     // ==================== 管理端审核 ====================
@@ -150,7 +157,9 @@ public class ReviewService {
         validateStatus(status);
         BookReview review = getReviewOrThrow(reviewId);
         review.setStatus(status);
-        return toVo(bookReviewRepository.save(review));
+        ReviewVo saved = toVo(bookReviewRepository.save(review));
+        recommendationService.invalidateAllAfterCommit();
+        return saved;
     }
 
     // ==================== 私有辅助方法 ====================

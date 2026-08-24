@@ -71,6 +71,9 @@ public class BookService {
     @Autowired
     private InventoryLogRepository inventoryLogRepository;
 
+    @Autowired
+    private RecommendationService recommendationService;
+
     // ==================== 公开查询（仅在售图书） ====================
 
     /**
@@ -225,6 +228,8 @@ public class BookService {
                     InventoryChangeType.PURCHASE_IN, "新书入库");
         }
 
+        recommendationService.invalidateAllAfterCommit();
+
         return toDetailVo(book);
     }
 
@@ -287,7 +292,9 @@ public class BookService {
             saveCategoryRelations(book, categories);
         }
 
-        return toDetailVo(bookRepository.save(book));
+        book = bookRepository.save(book);
+        recommendationService.invalidateAllAfterCommit();
+        return toDetailVo(book);
     }
 
     /** 上架/下架。下架代替物理删除，避免破坏订单、评论等历史数据。 */
@@ -295,7 +302,9 @@ public class BookService {
     public BookDetailVo changeStatus(Long bookId, BookStatus status) {
         Book book = getBookOrThrow(bookId);
         book.setStatus(status);
-        return toDetailVo(bookRepository.save(book));
+        book = bookRepository.save(book);
+        recommendationService.invalidateAllAfterCommit();
+        return toDetailVo(book);
     }
 
     /** 管理员手动调整库存，同时写入库存流水 */
@@ -322,6 +331,8 @@ public class BookService {
 
         recordInventoryLog(book, change, before, after,
                 InventoryChangeType.MANUAL_ADJUSTMENT, trimToNull(dto.getRemark()));
+
+        recommendationService.invalidateAllAfterCommit();
 
         return toDetailVo(book);
     }

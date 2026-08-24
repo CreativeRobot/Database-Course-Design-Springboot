@@ -84,6 +84,12 @@ public class OrderService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private RecommendationService recommendationService;
+
+    @Autowired
+    private InventoryService inventoryService;
+
     // ==================== 订单写操作 ====================
 
     /**
@@ -136,6 +142,8 @@ public class OrderService {
         cartItemRepository.deleteAllByIdInBatch(
                 selections.stream().map(CartSelection::cartItemId).toList());
 
+        recommendationService.invalidateAllAfterCommit();
+
         return toOrderVo(order, orderItems);
     }
 
@@ -161,24 +169,9 @@ public class OrderService {
             throwCurrentOrderState(userId, orderId, "订单状态已变化，无法取消");
         }
 
-        List<OrderStockLine> lines = loadOrderStockLines(orderId);
-        List<ReturnedStock> returnedStocks = new ArrayList<>();
-        for (OrderStockLine line : lines) {
-            if (bookRepository.increaseStock(line.bookId(), line.quantity()) == 0) {
-                throw new BusinessException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "订单库存退回失败");
-            }
-            Book book = bookRepository.findById(line.bookId())
-                    .orElseThrow(() -> new BusinessException(
-                            HttpStatus.INTERNAL_SERVER_ERROR, "订单关联图书不存在"));
-            returnedStocks.add(new ReturnedStock(
-                    line.bookId(),
-                    line.quantity(),
-                    book.getStock() - line.quantity(),
-                    book.getStock()
-            ));
-        }
-        saveCancellationInventoryLogs(orderId, orderNo, returnedStocks);
+        inventoryService.returnStockAndWriteLogs(orderId, orderNo);
+
+        recommendationService.invalidateAllAfterCommit();
         return loadOrderVo(orderId);
     }
 
@@ -202,8 +195,11 @@ public class OrderService {
             if (affectedRows == 0) {
                 continue;
             }
-            returnStockAndWriteLogs(order.getId(), order.getOrderNo());
+            inventoryService.returnStockAndWriteLogs(order.getId(), order.getOrderNo());
             cancelledCount++;
+        }
+        if (cancelledCount > 0) {
+            recommendationService.invalidateAllAfterCommit();
         }
         return cancelledCount;
     }
@@ -276,9 +272,10 @@ public class OrderService {
         if (affectedRows == 0) {
             throwCurrentOrderState(userId, orderId, "订单状态已变化，无法确认收货");
         }
-        for (OrderItem item : orderItemRepository.findByOrder_IdOrderByIdAsc(orderId)) {
-            bookRepository.increaseSalesCount(item.getBook().getId(), item.getQuantity());
-        }
+        inventoryService.increaseSalesCount(
+                orderItemRepository.findByOrder_IdOrderByIdAsc(orderId));
+
+        recommendationService.invalidateAllAfterCommit();
         return loadOrderVo(orderId);
     }
 
@@ -382,61 +379,6 @@ public class OrderService {
                     .remark("订单" + order.getOrderNo() + "创建扣减库存")
                     .build());
         }
-        inventoryLogRepository.saveAllAndFlush(logs);
-    }
-
-    /** 加载取消订单所需的图书和数量快照，并固定退库顺序。 */
-    private List<OrderStockLine> loadOrderStockLines(Long orderId) {
-        List<OrderStockLine> lines = orderItemRepository
-                .findByOrder_IdOrderByIdAsc(orderId)
-                .stream()
-                .map(item -> new OrderStockLine(
-                        item.getBook().getId(), item.getQuantity()))
-                .sorted(Comparator.comparing(OrderStockLine::bookId))
-                .toList();
-        if (lines.isEmpty()) {
-            throw new BusinessException(
-                    HttpStatus.INTERNAL_SERVER_ERROR, "订单明细不存在，无法退回库存");
-        }
-        return lines;
-    }
-
-    /** 保存订单取消产生的入库流水。 */
-    private void returnStockAndWriteLogs(Long orderId, String orderNo) {
-        List<OrderStockLine> lines = loadOrderStockLines(orderId);
-        List<ReturnedStock> returnedStocks = new ArrayList<>();
-        for (OrderStockLine line : lines) {
-            if (bookRepository.increaseStock(line.bookId(), line.quantity()) == 0) {
-                throw new BusinessException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "Order stock return failed");
-            }
-            Book book = bookRepository.findById(line.bookId())
-                    .orElseThrow(() -> new BusinessException(
-                            HttpStatus.INTERNAL_SERVER_ERROR, "Order book does not exist"));
-            returnedStocks.add(new ReturnedStock(
-                    line.bookId(),
-                    line.quantity(),
-                    book.getStock() - line.quantity(),
-                    book.getStock()
-            ));
-        }
-        saveCancellationInventoryLogs(orderId, orderNo, returnedStocks);
-    }
-
-    private void saveCancellationInventoryLogs(
-            Long orderId, String orderNo, List<ReturnedStock> returnedStocks) {
-        BookOrder orderReference = bookOrderRepository.getReferenceById(orderId);
-        List<InventoryLog> logs = returnedStocks.stream()
-                .map(stock -> InventoryLog.builder()
-                        .book(bookRepository.getReferenceById(stock.bookId()))
-                        .changeQuantity(stock.quantity())
-                        .beforeStock(stock.beforeStock())
-                        .afterStock(stock.afterStock())
-                        .changeType(InventoryChangeType.ORDER_CANCEL_RETURN)
-                        .order(orderReference)
-                        .remark("订单" + orderNo + "取消退回库存")
-                        .build())
-                .toList();
         inventoryLogRepository.saveAllAndFlush(logs);
     }
 
@@ -691,10 +633,5 @@ public class OrderService {
             String receiverName, String receiverPhone, String receiverAddress) {
     }
 
-    private record OrderStockLine(Long bookId, Integer quantity) {
-    }
 
-    private record ReturnedStock(
-            Long bookId, Integer quantity, Integer beforeStock, Integer afterStock) {
-    }
 }

@@ -17,3 +17,23 @@
 - Full-suite root cause confirmed: local MySQL `bookstore.users` has no `avatar_url` column. Applying the new additive migration before rerunning the suite.
 - After applying the migration, the non-escalated full suite reached all tests but Windows denied JUnit cleanup under `%TEMP%`; rerunning under the approved Maven permissions.
 - Final verification passed: full backend suite ran 25 tests with 0 failures and 0 errors after applying `sql/02_add_user_avatar_url.sql` to the local development database.
+
+## 2026-08-20 Recommendation Continuation
+
+- Recovered the approved homepage recommendation design and implementation plan from the paired Flutter repository.
+- Confirmed the backend and frontend are both on `recommend`; preserved all existing uncommitted recommendation files.
+- Reviewing the current backend implementation and tests before adding regression coverage for cache and API-contract edge cases.
+- Added and observed a RED regression test showing the cache incorrectly reused a `limit=1` result for `limit=2`.
+- Changed the cache key to include both user ID and requested limit; user invalidation removes every cached limit for that user.
+- Focused recommendation, order, and review tests pass (20 tests total). Full non-escalated Maven verification reached Spring/JPA startup and all recommendation tests, but two existing avatar file-storage tests fail while JUnit cleans denied `%TEMP%` directories.
+- The elevated rerun request was rejected by the external approval service with HTTP 503. Continuing with the safe non-elevated suite that excludes only the known temporary-directory-bound file storage tests.
+- Independent review found and the implementation now fixes scoring multiplication, false personalized explanations when no eligible candidate matches, and pre-commit cache invalidation. Review-status changes also invalidate recommendations after commit.
+- Final verification passed for all 34 non-file-storage backend tests, including the Spring/JPA context and all recommendation, order, and review tests. `git diff --check` is clean.
+
+## 2026-08-23 Order Inventory Concurrency and Service Split
+
+- Extracted stock return and completed-order sales-count updates from `OrderService` into `InventoryService`, while keeping controller/API method signatures unchanged.
+- Updated cancellation, expiration cancellation, and confirm-receipt flows to delegate inventory work through the new service; updated Mockito tests to verify delegation.
+- Added a MySQL Testcontainers 2.0.5 repository integration test that starts two independent transactions against one-stock inventory and asserts exactly one conditional decrement succeeds and final stock is zero.
+- `OrderServiceTests`: 11 tests passed. The real MySQL test compiled but was skipped because Docker is not installed/running in this environment.
+- Final rerun on 2026-08-23: 48 non-environment backend tests passed, 1 Docker-gated MySQL concurrency test skipped because Docker is unavailable; git diff --check is clean.

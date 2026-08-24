@@ -15,6 +15,33 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     List<OrderItem> findByBook_IdOrderByIdDesc(Long bookId);
 
+    @Query("""
+            select orderItem
+            from OrderItem orderItem
+            join fetch orderItem.book
+            where orderItem.order.user.id = :userId
+              and orderItem.order.status = :status
+            order by orderItem.id asc
+            """)
+    List<OrderItem> findCompletedByUserId(
+            @Param("userId") Long userId,
+            @Param("status") OrderStatus status
+    );
+
+    @Query("""
+            select sibling.book.id, sum(sibling.quantity)
+            from OrderItem seed, OrderItem sibling
+            where seed.order.id = sibling.order.id
+              and seed.order.status = :status
+              and seed.book.id in :seedBookIds
+              and sibling.book.id not in :seedBookIds
+            group by sibling.book.id
+            """)
+    List<Object[]> findCoPurchasedBookScores(
+            @Param("seedBookIds") List<Long> seedBookIds,
+            @Param("status") OrderStatus status
+    );
+
     Optional<OrderItem> findByIdAndOrder_User_Id(Long orderItemId, Long userId);
 
     @Query("""

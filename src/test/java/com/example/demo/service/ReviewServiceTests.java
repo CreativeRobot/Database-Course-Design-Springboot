@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +42,8 @@ class ReviewServiceTests {
     private BookRepository bookRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private RecommendationService recommendationService;
 
     @InjectMocks
     private ReviewService reviewService;
@@ -58,7 +61,7 @@ class ReviewServiceTests {
         dto.setRating(5);
         dto.setContent("内容清晰");
 
-        when(userRepository.findByIdAndStatus(1L, 1)).thenReturn(Optional.of(user));
+        lenient().when(userRepository.findByIdAndStatus(1L, 1)).thenReturn(Optional.of(user));
     }
 
     @Test
@@ -78,6 +81,7 @@ class ReviewServiceTests {
         assertEquals(5, result.getRating());
         assertEquals("读者", result.getReviewerName());
         assertEquals(40L, result.getOrderItemId());
+        verify(recommendationService).invalidateAllAfterCommit();
     }
 
     @Test
@@ -105,6 +109,20 @@ class ReviewServiceTests {
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatus());
         verify(bookReviewRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void changingReviewVisibilityInvalidatesTheReviewersRecommendations() {
+        OrderItem item = buildOrderItem(OrderStatus.COMPLETED);
+        BookReview review = BookReview.builder()
+                .id(60L).user(user).book(book).orderItem(item).status(1).rating(5).build();
+        when(bookReviewRepository.findById(60L)).thenReturn(Optional.of(review));
+        when(bookReviewRepository.save(any(BookReview.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReviewVo result = reviewService.changeReviewStatus(60L, 0);
+
+        assertEquals(0, result.getStatus());
+        verify(recommendationService).invalidateAllAfterCommit();
     }
 
     private OrderItem buildOrderItem(OrderStatus status) {

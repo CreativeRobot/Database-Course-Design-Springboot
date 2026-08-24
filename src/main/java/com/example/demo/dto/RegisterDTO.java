@@ -32,4 +32,12 @@ public class RegisterDTO {
             message = "手机号格式不正确"
     )
     private String phone;
+
+    @NotBlank(message = "验证码标识不能为空")
+    @Size(max = 64, message = "验证码标识不正确")
+    private String captchaId;
+
+    @NotBlank(message = "验证码不能为空")
+    @Size(max = 16, message = "验证码长度不正确")
+    private String captchaCode;
 }

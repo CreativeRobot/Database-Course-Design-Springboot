@@ -27,6 +27,9 @@ public class AuthService {
     @Autowired
     private JwtUtils jwtUtils;
 
+    @Autowired
+    private CaptchaService captchaService;
+
     @Transactional(readOnly = true)
     public LoginVo login(LoginDTO loginDTO) {
         if (loginDTO == null
@@ -34,6 +37,7 @@ public class AuthService {
                 || !StringUtils.hasText(loginDTO.getPassword())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "用户名或密码不能为空");
         }
+        captchaService.verifyAndConsume(loginDTO.getCaptchaId(), loginDTO.getCaptchaCode());
 
         String username = UsernameUtils.normalize(loginDTO.getUsername());
         User user = userRepository.findByUsernameIgnoreCase(username)
@@ -59,6 +63,7 @@ public class AuthService {
                 || !StringUtils.hasText(registerDTO.getPassword())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "用户名或密码不能为空");
         }
+        captchaService.verifyAndConsume(registerDTO.getCaptchaId(), registerDTO.getCaptchaCode());
 
         String username = UsernameUtils.normalize(registerDTO.getUsername());
         String password = registerDTO.getPassword();
