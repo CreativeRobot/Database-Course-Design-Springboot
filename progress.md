@@ -37,3 +37,15 @@
 - Added a MySQL Testcontainers 2.0.5 repository integration test that starts two independent transactions against one-stock inventory and asserts exactly one conditional decrement succeeds and final stock is zero.
 - `OrderServiceTests`: 11 tests passed. The real MySQL test compiled but was skipped because Docker is not installed/running in this environment.
 - Final rerun on 2026-08-23: 48 non-environment backend tests passed, 1 Docker-gated MySQL concurrency test skipped because Docker is unavailable; git diff --check is clean.
+
+## 2026-08-25 Recommendation Audit
+- Initialized an analysis-only audit plan without touching backend business logic.
+- Located existing recommendation services/tests from the project tree and recovered previous verification notes.
+- Environment limitation: `rg.exe` cannot launch (access denied); switched to PowerShell `Get-ChildItem`/`Select-String`.
+- Completed static inspection of ranker, service, controller, repository queries, entity lazy mappings, invalidation call sites, schema, and unit-test names.
+- Saved evidence-backed audit observations to findings.md before verification.
+- Focused Maven verification started, but it is inconclusive: Surefire could not write files below the existing `target/surefire-reports` (access denied), then reported `Tests run: 0`. The build success is compilation/lifecycle success only, not test-pass evidence. Next attempt will redirect Surefire reports to a known writable project subdirectory.
+- Root-cause evidence: both `target/surefire-reports` and existing `.tmp_junit` are environment-owned/unwritable under the current sandbox identity. This is a filesystem-permission issue, not a recommendation-test failure. A clean project-root report directory will be used for the one remaining isolated verification attempt.
+- The clean report directory is writable. The first redirected test command did not run Maven tests because `cmd /c` split an unquoted path containing spaces; Maven treated the path suffix as a lifecycle phase. The next command will pass each Maven property as a PowerShell argument to isolate command parsing from test execution.
+- Focused test verification remains inconclusive: Maven compiled with exit code 0, but Surefire ran zero tests because its existing target report directory is unwritable. This result must not be described as a passed test suite.
+- Completed the analysis-only recommendation audit. No backend business-code files were edited.

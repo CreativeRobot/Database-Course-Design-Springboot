@@ -2,7 +2,7 @@ package com.example.demo.common.config;
 
 import com.example.demo.common.utils.JwtUtils;
 import com.example.demo.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;

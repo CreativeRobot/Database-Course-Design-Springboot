@@ -48,3 +48,33 @@ Complete the approved backend portion of the homepage recommendation system on `
 - A non-escalated full suite reaches the tests but reports only `FileStorageServiceTests` cleanup errors from denied access to `%TEMP%`, unrelated to the recommendation change.
 - The requested elevated full-suite rerun was rejected by the approval service with HTTP 503. Do not retry or work around the denied elevation; verify all tests that do not require the blocked temporary-directory cleanup path.
 - Final safe verification passed: `mvn -Dmaven.repo.local=.m2/repository -Dtest=!FileStorageServiceTests test` ran 34 tests with 0 failures and 0 errors. `git diff --check` is clean.
+
+## 2026-08-25 Recommendation System Audit
+
+### Goal
+Review the existing backend collaborative-filtering/hybrid recommendation implementation for algorithmic correctness, scalability, data quality, cache behavior, API robustness, and test coverage. Analysis only; do not change business code.
+
+### Phases
+- [completed] Locate the existing recommendation implementation and prior validation notes.
+- [in_progress] Inspect ranking algorithm, repository queries, data model, cache behavior, endpoint, and tests.
+- [pending] Identify evidence-backed optimization opportunities and prioritize them.
+- [pending] Produce a concise audit report; no code changes in this task.
+
+### Audit Constraints
+- The repository has unrelated tracked local modifications in security/config/test files; exclude them from recommendation findings.
+- `rg.exe` cannot run in this sandbox (access denied); use PowerShell file discovery and `Select-String` instead.
+- Git requires the one-command `-c safe.directory=...` override; do not change global Git configuration.
+
+| Focused recommendation test reports cannot be created in the existing `target/surefire-reports` directory (access denied); Surefire reported `Tests run: 0`, so this is not valid test-pass evidence. | Rerun with a newly writable Surefire reports directory under `.tmp_junit`; do not interpret the previous Maven `BUILD SUCCESS` as test success. |
+| The alternative pre-existing `.tmp_junit` directory is also not writable (access denied). | Treat both pre-existing generated-output directories as environment-owned; use a newly created directory at the writable project root for the next isolated Surefire-report attempt. |
+| Redirected Surefire command failed before tests began because `cmd /c` split the unquoted report-directory path at its spaces (`Unknown lifecycle phase "game\\Code..."`). | The diagnostic directory was confirmed writable; invoke the system Maven command directly from PowerShell with the property passed as one argument. |
+
+### Final Audit Status
+- [completed] Locate the existing recommendation implementation and prior validation notes.
+- [completed] Inspect ranking algorithm, repository queries, data model, cache behavior, endpoint, and tests.
+- [completed] Identify evidence-backed optimization opportunities and prioritize them.
+- [completed] Produce an analysis-only audit report; no backend business code was modified.
+
+### Verification
+- `mvn -o -Dmaven.repo.local=.m2/repository -Dtest=RecommendationRankerTests,RecommendationServiceTests test` compiled successfully, but it was not a valid test execution: Surefire could not write to the pre-existing `target/surefire-reports` directory and reported `Tests run: 0`.
+- A clean report directory was writable, but Surefire continued to use the pre-existing target directory despite the attempted property override. No further retries were run because this is an environment-output-permission issue and does not block the static audit.

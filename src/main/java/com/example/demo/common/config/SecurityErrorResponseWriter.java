@@ -1,7 +1,7 @@
 package com.example.demo.common.config;
 
 import com.example.demo.common.Result;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -30,3 +30,4 @@ public class SecurityErrorResponseWriter {
         objectMapper.writeValue(response.getWriter(), Result.error(status.value(), message));
     }
 }
+
