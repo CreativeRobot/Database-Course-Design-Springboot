@@ -168,14 +168,22 @@ public class BookService {
 
     // ==================== 管理端查询 ====================
 
-    /** 管理端分页查询全部图书（含下架） */
+    /** 管理端分页查询全部图书（含下架），可按状态、作者、出版社或分类过滤。 */
     @Transactional(readOnly = true)
-    public PageVo<BookVo> listAllBooks(BookStatus status, int page, int size) {
+    public PageVo<BookVo> listAllBooks(
+            BookStatus status, Long authorId, Long publisherId, Long categoryId, int page, int size) {
         Pageable pageable = buildPageable(page, size);
-        Page<Book> books = status == null
-                ? bookRepository.findAll(pageable)
-                : bookRepository.findByStatus(status, pageable);
-        return PageVo.of(books.map(this::toBookVo));
+        List<Long> categoryIds = categoryId == null ? List.of() : resolveSearchCategoryIds(categoryId);
+        Specification<Book> spec = (root, query, cb) -> {
+            query.distinct(true);
+            List<Predicate> predicates = new ArrayList<>();
+            if (status != null) predicates.add(cb.equal(root.get("status"), status));
+            if (authorId != null) predicates.add(existsAuthor(query, cb, root, authorId));
+            if (publisherId != null) predicates.add(cb.equal(root.get("publisher").get("id"), publisherId));
+            if (!categoryIds.isEmpty()) predicates.add(existsCategory(query, cb, root, categoryIds));
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+        return PageVo.of(bookRepository.findAll(spec, pageable).map(this::toBookVo));
     }
 
     /** 管理端查询图书详情（含下架图书） */
