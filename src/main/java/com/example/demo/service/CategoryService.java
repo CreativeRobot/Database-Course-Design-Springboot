@@ -42,6 +42,29 @@ public class CategoryService {
         return categories.stream().map(this::toVo).toList();
     }
 
+
+    /** 按父子层级查询分类树，可按启用状态过滤。 */
+    @Transactional(readOnly = true)
+    public List<CategoryVo> listCategoryTree(Integer status) {
+        List<CategoryVo> categories = listCategories(status);
+        java.util.Map<Long, CategoryVo> categoriesById = new java.util.LinkedHashMap<>();
+        for (CategoryVo category : categories) {
+            categoriesById.put(category.getId(), category);
+        }
+
+        List<CategoryVo> roots = new java.util.ArrayList<>();
+        for (CategoryVo category : categories) {
+            if (category.getParentId() == null) {
+                roots.add(category);
+                continue;
+            }
+            CategoryVo parent = categoriesById.get(category.getParentId());
+            if (parent != null) {
+                parent.getChildren().add(category);
+            }
+        }
+        return roots;
+    }
     /** 查询分类详情。 */
     @Transactional(readOnly = true)
     public CategoryVo getCategory(Long categoryId) {
@@ -79,6 +102,11 @@ public class CategoryService {
                 .ifPresent(existing -> {
                     throw new BusinessException(HttpStatus.CONFLICT, "分类名称已存在");
                 });
+
+        if (dto.getParentId() != null && categoryRepository.existsByParent_Id(categoryId)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "含有子分类的一级分类不能移动到其他分类下");
+        }
 
         category.setName(name);
         category.setParent(resolveParent(dto.getParentId(), categoryId));
@@ -125,6 +153,10 @@ public class CategoryService {
         Category parent = categoryRepository.findById(parentId)
                 .orElseThrow(() -> new BusinessException(
                         HttpStatus.BAD_REQUEST, "父分类不存在"));
+        if (parent.getParent() != null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "分类最多支持两级，父分类必须为一级分类");
+        }
+
         Set<Long> visited = new HashSet<>();
         Category cursor = parent;
         while (cursor != null) {

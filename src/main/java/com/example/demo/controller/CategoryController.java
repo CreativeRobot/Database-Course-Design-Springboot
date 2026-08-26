@@ -17,6 +17,11 @@ public class CategoryController {
     @Autowired
     private CategoryService categoryService;
 
+    @GetMapping("/tree")
+    public Result<List<CategoryVo>> listCategoryTree() {
+        return Result.success(categoryService.listCategoryTree(1));
+    }
+
     @GetMapping
     public Result<List<CategoryVo>> listCategories() {
         return Result.success(categoryService.listCategories(1));

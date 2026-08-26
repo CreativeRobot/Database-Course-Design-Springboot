@@ -88,6 +88,7 @@ public class BookService {
             boolean inStock, String sortBy, String direction, int page, int size) {
         validatePriceRange(minPrice, maxPrice);
         Pageable pageable = buildSearchPageable(page, size, sortBy, direction);
+        List<Long> categoryIds = categoryId == null ? List.of() : resolveSearchCategoryIds(categoryId);
         Specification<Book> spec = (root, query, cb) -> {
             query.distinct(true);
             List<Predicate> predicates = new ArrayList<>();
@@ -96,7 +97,7 @@ public class BookService {
                 String pattern = "%" + keyword.trim().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(root.get("title")), pattern));
             }
-            if (categoryId != null) predicates.add(existsCategory(query, cb, root, categoryId));
+            if (!categoryIds.isEmpty()) predicates.add(existsCategory(query, cb, root, categoryIds));
             if (authorId != null) predicates.add(existsAuthor(query, cb, root, authorId));
             if (publisherId != null) predicates.add(cb.equal(root.get("publisher").get("id"), publisherId));
             if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("salePrice"), minPrice));
@@ -115,14 +116,26 @@ public class BookService {
         return cb.exists(subquery);
     }
 
-    private Predicate existsCategory(CriteriaQuery<?> query, CriteriaBuilder cb, Root<Book> root, Long categoryId) {
+    List<Long> resolveSearchCategoryIds(Long categoryId) {
+        return java.util.stream.Stream.concat(
+                        java.util.stream.Stream.of(categoryId),
+                        categoryRepository
+                                .findByParent_IdAndStatusOrderBySortOrderAscNameAsc(categoryId, 1)
+                                .stream()
+                                .map(Category::getId))
+                .distinct()
+                .toList();
+    }
+
+    private Predicate existsCategory(CriteriaQuery<?> query, CriteriaBuilder cb, Root<Book> root,
+                                     List<Long> categoryIds) {
         var subquery = query.subquery(Long.class);
         var relation = subquery.from(BookCategory.class);
         subquery.select(cb.literal(1L));
-        subquery.where(cb.equal(relation.get("book"), root), cb.equal(relation.get("category").get("id"), categoryId));
+        subquery.where(cb.equal(relation.get("book"), root),
+                relation.get("category").get("id").in(categoryIds));
         return cb.exists(subquery);
     }
-
     private Pageable buildSearchPageable(int page, int size, String sortBy, String direction) {
         if (page < 1 || size < 1 || size > MAX_PAGE_SIZE) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "分页参数不合法");

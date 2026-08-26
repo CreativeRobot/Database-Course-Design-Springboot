@@ -29,6 +29,12 @@ public class AdminCategoryController {
     @Autowired
     private CategoryService categoryService;
 
+    @GetMapping("/tree")
+    public Result<List<CategoryVo>> listCategoryTree(
+            @RequestParam(required = false) Integer status) {
+        return Result.success(categoryService.listCategoryTree(status));
+    }
+
     @GetMapping
     public Result<List<CategoryVo>> listCategories(
             @RequestParam(required = false) Integer status) {
