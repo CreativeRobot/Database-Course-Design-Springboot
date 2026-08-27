@@ -10,6 +10,7 @@ import org.springframework.cache.Cache;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,6 +36,11 @@ class CaptchaServiceTests {
         assertFalse(result.getCaptchaId().isBlank());
         assertTrue(result.getImageBase64().startsWith("iVBOR"));
         assertTrue(result.getExpiresInSeconds() > 0);
+    }
+
+    @Test
+    void issuesCaptchaWithFiveMinuteLifetime() {
+        assertEquals(300, captchaService.issue().getExpiresInSeconds());
     }
 
     @Test

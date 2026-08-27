@@ -37,7 +37,7 @@ public class AuthService {
                 || !StringUtils.hasText(loginDTO.getPassword())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "用户名或密码不能为空");
         }
-        captchaService.verifyAndConsume(loginDTO.getCaptchaId(), loginDTO.getCaptchaCode());
+        verifyLoginCaptcha(loginDTO);
 
         String username = UsernameUtils.normalize(loginDTO.getUsername());
         User user = userRepository.findByUsernameIgnoreCase(username)
@@ -100,6 +100,17 @@ public class AuthService {
                 user.getRole().name()
         ));
         return loginVo;
+    }
+
+    private void verifyLoginCaptcha(LoginDTO loginDTO) {
+        boolean hasId = StringUtils.hasText(loginDTO.getCaptchaId());
+        boolean hasCode = StringUtils.hasText(loginDTO.getCaptchaCode());
+        if (hasId != hasCode) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "请完整填写验证码");
+        }
+        if (hasId) {
+            captchaService.verifyAndConsume(loginDTO.getCaptchaId(), loginDTO.getCaptchaCode());
+        }
     }
 
     private String trimToNull(String value) {

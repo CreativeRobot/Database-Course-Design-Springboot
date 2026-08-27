@@ -33,7 +33,7 @@ public class CaptchaService {
     private static final int CODE_LENGTH = 5;
     private static final int IMAGE_WIDTH = 140;
     private static final int IMAGE_HEIGHT = 48;
-    private static final int EXPIRES_IN_SECONDS = 120;
+    private static final int EXPIRES_IN_SECONDS = 300;
     private static final String ERROR_MESSAGE = "验证码错误或已过期";
 
     private final CacheManager cacheManager;

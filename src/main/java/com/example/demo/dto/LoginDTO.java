@@ -14,11 +14,9 @@ public class LoginDTO {
     @Size(min = 6, max = 50, message = "密码长度必须为6到50个字符")
     private String password;
 
-    @NotBlank(message = "验证码标识不能为空")
     @Size(max = 64, message = "验证码标识不正确")
     private String captchaId;
 
-    @NotBlank(message = "验证码不能为空")
     @Size(max = 16, message = "验证码长度不正确")
     private String captchaCode;
 }

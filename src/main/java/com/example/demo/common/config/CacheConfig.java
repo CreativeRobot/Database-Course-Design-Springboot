@@ -19,7 +19,7 @@ public class CacheConfig {
                 "captcha",
                 Caffeine.newBuilder()
                         .maximumSize(10_000)
-                        .expireAfterWrite(Duration.ofMinutes(2))
+                        .expireAfterWrite(Duration.ofMinutes(5))
                         .build()
         );
         return cacheManager;

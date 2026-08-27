@@ -42,6 +42,26 @@ class AuthServiceTests {
     private AuthService authService;
 
     @Test
+    void loginWithoutCaptchaDoesNotInvokeCaptchaService() {
+        LoginDTO request = loginRequest();
+        arrangeAuthenticatedCustomer();
+
+        authService.login(request);
+
+        verify(captchaService, never()).verifyAndConsume(any(), any());
+    }
+
+    @Test
+    void loginRejectsPartialCaptchaPairBeforeLookingUpUser() {
+        LoginDTO request = loginRequest();
+        request.setCaptchaId("captcha-id");
+
+        assertThrows(BusinessException.class, () -> authService.login(request));
+
+        verify(userRepository, never()).findByUsernameIgnoreCase(any());
+    }
+
+    @Test
     void loginVerifiesCaptchaBeforeLookingUpUser() {
         LoginDTO request = new LoginDTO();
         request.setUsername("reader");
@@ -95,5 +115,25 @@ class AuthServiceTests {
 
         verify(captchaService).verifyAndConsume("captcha-id", "abcde");
         verify(userRepository).findByUsernameIgnoreCase("reader");
+    }
+
+    private LoginDTO loginRequest() {
+        LoginDTO request = new LoginDTO();
+        request.setUsername("reader");
+        request.setPassword("password");
+        return request;
+    }
+
+    private void arrangeAuthenticatedCustomer() {
+        User user = User.builder()
+                .id(1L)
+                .username("reader")
+                .password("encoded")
+                .status(1)
+                .role(Role.CUSTOMER)
+                .build();
+        when(userRepository.findByUsernameIgnoreCase("reader")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password", "encoded")).thenReturn(true);
+        when(jwtUtils.generateToken(1L, "reader", "CUSTOMER")).thenReturn("token");
     }
 }
