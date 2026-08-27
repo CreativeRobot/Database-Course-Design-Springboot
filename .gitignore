@@ -33,3 +33,13 @@ build/
 .vscode/
 
 .worktrees/
+
+
+### maven ###
+.m2/
+
+### Build output ###
+target/
+
+### Runtime temporary files ###
+.runtime-temp/
