@@ -31,6 +31,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 public class RecommendationService {
     private static final int ENABLED_REVIEW_STATUS = 1;
     private static final int MAX_LIMIT = 20;
+    private static final long GUEST_CACHE_USER_ID = 0L;
 
     @Autowired
     private BookRepository bookRepository;
@@ -51,14 +52,11 @@ public class RecommendationService {
 
     @Transactional(readOnly = true)
     public RecommendationHomeVo getHomeRecommendations(Long userId, int limit) {
-        if (userId == null) {
-            throw new BusinessException(HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
-        }
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "推荐数量必须在1到20之间");
         }
 
-        CacheKey cacheKey = new CacheKey(userId, limit);
+        CacheKey cacheKey = new CacheKey(userId == null ? GUEST_CACHE_USER_ID : userId, limit);
         RecommendationHomeVo cached = cache.getIfPresent(cacheKey);
         if (cached != null) {
             return cached;
@@ -109,8 +107,9 @@ public class RecommendationService {
     }
 
     private RecommendationHomeVo buildRecommendations(Long userId, int limit) {
-        List<OrderItem> purchasedItems = orderItemRepository.findCompletedByUserId(
-                userId, OrderStatus.COMPLETED);
+        List<OrderItem> purchasedItems = userId == null
+                ? List.of()
+                : orderItemRepository.findCompletedByUserId(userId, OrderStatus.COMPLETED);
         List<Long> purchasedBookIds = purchasedItems.stream()
                 .map(item -> item.getBook().getId())
                 .distinct()
@@ -161,9 +160,11 @@ public class RecommendationService {
         for (OrderItem item : purchasedItems) {
             addCategoryWeight(weights, categoriesByBook.getOrDefault(item.getBook().getId(), List.of()), 3);
         }
-        for (BookReview review : bookReviewRepository.findByUser_IdAndStatus(userId, ENABLED_REVIEW_STATUS)) {
-            addCategoryWeight(weights, categoriesByBook.getOrDefault(review.getBook().getId(), List.of()),
-                    Math.max(0, review.getRating() - 1));
+        if (userId != null) {
+            for (BookReview review : bookReviewRepository.findByUser_IdAndStatus(userId, ENABLED_REVIEW_STATUS)) {
+                addCategoryWeight(weights, categoriesByBook.getOrDefault(review.getBook().getId(), List.of()),
+                        Math.max(0, review.getRating() - 1));
+            }
         }
         return weights;
     }

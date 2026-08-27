@@ -19,7 +19,7 @@ public class RecommendationController {
 
     @GetMapping("/home")
     public Result<RecommendationHomeVo> home(
-            @RequestAttribute("userId") Long userId,
+            @RequestAttribute(value = "userId", required = false) Long userId,
             @RequestParam(defaultValue = "12") int limit) {
         return Result.success(recommendationService.getHomeRecommendations(userId, limit));
     }

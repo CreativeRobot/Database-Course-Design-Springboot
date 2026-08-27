@@ -65,6 +65,24 @@ class RecommendationServiceTests {
     }
 
     @Test
+    void returnsPopularBooksForAnonymousVisitorsWithoutUserQueries() {
+        Book popular = book(2L, 30L);
+        when(bookRepository.findByStatusAndStockGreaterThan(BookStatus.ON_SALE, 0))
+                .thenReturn(List.of(popular));
+        when(bookCategoryRepository.findByBookIdsWithCategory(List.of(2L)))
+                .thenReturn(List.of());
+        when(bookReviewRepository.findAverageRatingsByBookIds(List.of(2L), 1))
+                .thenReturn(List.of());
+
+        RecommendationHomeVo result = recommendationService.getHomeRecommendations(null, 12);
+
+        assertEquals("POPULAR", result.getSource());
+        assertEquals(2L, result.getBooks().getFirst().getId());
+        verifyNoInteractions(orderItemRepository);
+        verify(bookReviewRepository, times(0)).findByUser_IdAndStatus(any(), any());
+    }
+
+    @Test
     void recomputesAfterExplicitInvalidationInsteadOfServingCachedResponse() {
         when(orderItemRepository.findCompletedByUserId(any(), any())).thenReturn(List.<OrderItem>of());
         when(bookRepository.findByStatusAndStockGreaterThan(BookStatus.ON_SALE, 0))
