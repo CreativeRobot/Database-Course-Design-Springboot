@@ -1,13 +1,13 @@
 package com.example.demo.service;
 
 import com.example.demo.common.exception.BusinessException;
-import com.example.demo.entity.Book;
 import com.example.demo.entity.BookOrder;
 import com.example.demo.entity.InventoryChangeType;
 import com.example.demo.entity.InventoryLog;
 import com.example.demo.entity.OrderItem;
 import com.example.demo.repository.BookOrderRepository;
 import com.example.demo.repository.BookRepository;
+import com.example.demo.repository.BookStockSnapshot;
 import com.example.demo.repository.InventoryLogRepository;
 import com.example.demo.repository.OrderItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,15 +50,18 @@ public class InventoryService {
 
         List<ReturnedStock> returnedStocks = new ArrayList<>();
         for (OrderStockLine line : lines) {
-            if (bookRepository.increaseStock(line.bookId(), line.quantity()) == 0) {
+            BookStockSnapshot snapshot = bookRepository
+                    .findStockSnapshotForUpdate(line.bookId())
+                    .orElseThrow(() -> new BusinessException(
+                            HttpStatus.INTERNAL_SERVER_ERROR, "订单关联图书不存在"));
+            int beforeStock = snapshot.getStock();
+            int afterStock = beforeStock + line.quantity();
+            if (bookRepository.increaseStock(line.bookId(), line.quantity()) != 1) {
                 throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR,
                         "订单库存退回失败");
             }
-            Book book = bookRepository.findById(line.bookId())
-                    .orElseThrow(() -> new BusinessException(
-                            HttpStatus.INTERNAL_SERVER_ERROR, "订单关联图书不存在"));
             returnedStocks.add(new ReturnedStock(
-                    line.bookId(), line.quantity(), book.getStock() - line.quantity(), book.getStock()));
+                    line.bookId(), line.quantity(), beforeStock, afterStock));
         }
 
         BookOrder orderReference = bookOrderRepository.getReferenceById(orderId);

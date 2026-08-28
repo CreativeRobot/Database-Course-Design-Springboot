@@ -19,6 +19,7 @@ import com.example.demo.repository.AuthorRepository;
 import com.example.demo.repository.BookAuthorRepository;
 import com.example.demo.repository.BookCategoryRepository;
 import com.example.demo.repository.BookRepository;
+import com.example.demo.repository.BookStockSnapshot;
 import com.example.demo.repository.CategoryRepository;
 import com.example.demo.repository.InventoryLogRepository;
 import com.example.demo.repository.PublisherRepository;
@@ -343,17 +344,21 @@ public class BookService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "变动数量不能为0");
         }
 
-        Book book = getBookOrThrow(bookId);
-        int before = book.getStock();
-        int after = before + change;
-        if (after < 0) {
+        BookStockSnapshot snapshot = bookRepository.findStockSnapshotForUpdate(bookId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "图书不存在"));
+        int before = snapshot.getStock();
+        long afterLong = (long) before + change;
+        if (afterLong < 0 || afterLong > Integer.MAX_VALUE) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "库存调整后数值超出允许范围，当前库存为" + before);
+        }
+        int after = (int) afterLong;
+
+        if (bookRepository.adjustStock(bookId, change) != 1) {
             throw new BusinessException(HttpStatus.BAD_REQUEST,
                     "库存不足，当前库存为" + before);
         }
-
-        book.setStock(after);
-        book = bookRepository.save(book);
-
+        Book book = getBookOrThrow(bookId);
         recordInventoryLog(book, change, before, after,
                 InventoryChangeType.MANUAL_ADJUSTMENT, trimToNull(dto.getRemark()));
 

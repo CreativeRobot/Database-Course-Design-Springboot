@@ -63,6 +63,23 @@ class DatabaseMigrationValidationTests {
                 """, Integer.class);
 
         assertEquals(1, salesCountMigrationCount);
+
+        Integer defaultUserIdColumn = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'user_address'
+                  AND column_name = 'default_user_id'
+                """, Integer.class);
+        assertEquals(1, defaultUserIdColumn);
+
+        Integer consistencyMigrationCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM flyway_schema_history
+                WHERE version = '3'
+                  AND success = TRUE
+                """, Integer.class);
+        assertEquals(1, consistencyMigrationCount);
     }
 
     static boolean dockerIsAvailable() {

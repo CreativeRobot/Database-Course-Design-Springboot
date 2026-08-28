@@ -57,7 +57,7 @@ public class UserAddressService {
     @Transactional
     public UserAddressVo createAddress(Long userId, SaveUserAddressDTO dto) {
         validateAddress(dto);
-        User user = getActiveUser(userId);
+        User user = getActiveUserForUpdate(userId);
         boolean shouldBeDefault = userAddressRepository.countByUser_Id(userId) == 0
                 || Boolean.TRUE.equals(dto.getDefaultAddress());
         if (shouldBeDefault) {
@@ -79,7 +79,7 @@ public class UserAddressService {
     public UserAddressVo updateAddress(
             Long userId, Long addressId, SaveUserAddressDTO dto) {
         validateAddress(dto);
-        getActiveUser(userId);
+        getActiveUserForUpdate(userId);
         UserAddress address = getOwnedAddress(userId, addressId);
         copyAddressFields(dto, address);
 
@@ -95,7 +95,7 @@ public class UserAddressService {
     /** 将指定地址设为当前用户唯一的默认地址。 */
     @Transactional
     public UserAddressVo setDefaultAddress(Long userId, Long addressId) {
-        getActiveUser(userId);
+        getActiveUserForUpdate(userId);
         UserAddress address = getOwnedAddress(userId, addressId);
         userAddressRepository.clearDefaultAddress(userId);
         address.setDefaultAddress(true);
@@ -108,7 +108,7 @@ public class UserAddressService {
      */
     @Transactional
     public void deleteAddress(Long userId, Long addressId) {
-        getActiveUser(userId);
+        getActiveUserForUpdate(userId);
         UserAddress address = getOwnedAddress(userId, addressId);
         boolean wasDefault = Boolean.TRUE.equals(address.getDefaultAddress());
         userAddressRepository.delete(address);
@@ -144,6 +144,16 @@ public class UserAddressService {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
         }
         return userRepository.findByIdAndStatus(userId, 1)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "用户不存在或已被禁用"));
+    }
+
+    /** 写操作锁定用户行，串行化同一用户的默认地址变更。 */
+    private User getActiveUserForUpdate(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
+        }
+        return userRepository.findByIdAndStatusForUpdate(userId, 1)
                 .orElseThrow(() -> new BusinessException(
                         HttpStatus.NOT_FOUND, "用户不存在或已被禁用"));
     }

@@ -2,6 +2,8 @@ package com.example.demo.repository;
 
 import com.example.demo.entity.Book;
 import com.example.demo.entity.BookStatus;
+import com.example.demo.entity.InventoryChangeType;
+import com.example.demo.entity.InventoryLog;
 import com.example.demo.entity.Publisher;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -64,6 +66,9 @@ class BookRepositoryConcurrencyTests {
     private EntityManager entityManager;
 
     @Autowired
+    private InventoryLogRepository inventoryLogRepository;
+
+    @Autowired
     private TransactionTemplate transactionTemplate;
 
     @Test
@@ -105,6 +110,102 @@ class BookRepositoryConcurrencyTests {
             assertEquals(0, persisted.getStock());
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentStockChangesWriteExactInventoryTransitions() throws Exception {
+        Long bookId = transactionTemplate.execute(status -> {
+            Publisher publisher = Publisher.builder().name("流水并发测试出版社").build();
+            entityManager.persist(publisher);
+            Book book = Book.builder()
+                    .isbn("9780000000998")
+                    .title("并发流水精确性测试书")
+                    .publisher(publisher)
+                    .originalPrice(new BigDecimal("10.00"))
+                    .salePrice(new BigDecimal("8.00"))
+                    .stock(10)
+                    .status(BookStatus.ON_SALE)
+                    .build();
+            entityManager.persist(book);
+            entityManager.flush();
+            return book.getId();
+        });
+
+        int workerCount = 10;
+        CountDownLatch ready = new CountDownLatch(workerCount);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(workerCount);
+        try {
+            List<Future<Integer>> workers = java.util.stream.IntStream.range(0, workerCount)
+                    .mapToObj(index -> submitExactDecrement(executor, ready, start, bookId))
+                    .toList();
+            assertEquals(true, ready.await(10, TimeUnit.SECONDS));
+            start.countDown();
+
+            List<Integer> results = workers.stream()
+                    .map(future -> getFuture(future))
+                    .toList();
+
+            assertEquals(workerCount, results.stream().mapToInt(Integer::intValue).sum());
+            entityManager.clear();
+            Book persisted = bookRepository.findById(bookId).orElseThrow();
+            List<InventoryLog> logs = inventoryLogRepository.findByBook_IdOrderByCreateTimeDesc(bookId,
+                    org.springframework.data.domain.PageRequest.of(0, workerCount + 1)).getContent();
+
+            assertEquals(workerCount, logs.size());
+            assertEquals(0, persisted.getStock());
+            assertEquals(0, 10 + logs.stream()
+                    .mapToInt(InventoryLog::getChangeQuantity)
+                    .sum());
+            logs.forEach(log -> {
+                assertEquals(log.getBeforeStock() + log.getChangeQuantity(), log.getAfterStock());
+                assertEquals(InventoryChangeType.MANUAL_ADJUSTMENT, log.getChangeType());
+                assertEquals(-1, log.getChangeQuantity());
+            });
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private Future<Integer> submitExactDecrement(
+            ExecutorService executor,
+            CountDownLatch ready,
+            CountDownLatch start,
+            Long bookId) {
+        return executor.submit(() -> {
+            ready.countDown();
+            if (!start.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("并发测试未能同时开始");
+            }
+            return transactionTemplate.execute(status -> {
+                BookStockSnapshot snapshot = bookRepository.findStockSnapshotForUpdate(bookId).orElseThrow();
+                if (snapshot.getStock() < 1) {
+                    return 0;
+                }
+                int beforeStock = snapshot.getStock();
+                int affectedRows = bookRepository.decreaseStock(bookId, 1, BookStatus.ON_SALE);
+                if (affectedRows != 1) {
+                    return 0;
+                }
+                inventoryLogRepository.saveAndFlush(InventoryLog.builder()
+                        .book(bookRepository.getReferenceById(bookId))
+                        .changeQuantity(-1)
+                        .beforeStock(beforeStock)
+                        .afterStock(beforeStock - 1)
+                        .changeType(InventoryChangeType.MANUAL_ADJUSTMENT)
+                        .remark("并发测试")
+                        .build());
+                return 1;
+            });
+        });
+    }
+
+    private int getFuture(Future<Integer> future) {
+        try {
+            return future.get(20, TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            throw new AssertionError("并发任务执行失败", exception);
         }
     }
 

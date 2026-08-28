@@ -17,6 +17,7 @@ import com.example.demo.entity.User;
 import com.example.demo.entity.UserAddress;
 import com.example.demo.repository.BookOrderRepository;
 import com.example.demo.repository.BookRepository;
+import com.example.demo.repository.BookStockSnapshot;
 import com.example.demo.repository.CartItemRepository;
 import com.example.demo.repository.InventoryLogRepository;
 import com.example.demo.repository.OrderItemRepository;
@@ -126,7 +127,8 @@ public class OrderService {
                 .totalAmount(totalAmount)
                 .discountAmount(BigDecimal.ZERO)
                 .shippingFee(BigDecimal.ZERO)
-                .payableAmount(totalAmount)
+                .payableAmount(calculatePayableAmount(
+                        totalAmount, BigDecimal.ZERO, BigDecimal.ZERO))
                 .expireTime(createTime.plusMinutes(PAYMENT_TIMEOUT_MINUTES))
                 .receiverName(address.receiverName())
                 .receiverPhone(address.receiverPhone())
@@ -320,26 +322,35 @@ public class OrderService {
     }
 
     private DeductedLine deductStock(CartSelection selection) {
-        int affectedRows = bookRepository.decreaseStock(
-                selection.bookId(), selection.quantity(), BookStatus.ON_SALE);
-        if (affectedRows == 0) {
-            throwStockException(selection.bookId());
+        BookStockSnapshot snapshot = bookRepository
+                .findStockSnapshotForUpdate(selection.bookId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "图书不存在"));
+        if (!BookStatus.ON_SALE.name().equals(snapshot.getStatus())) {
+            throw new BusinessException(HttpStatus.CONFLICT,
+                    "图书《" + snapshot.getTitle() + "》已下架");
+        }
+        if (snapshot.getStock() < selection.quantity()) {
+            throw new BusinessException(HttpStatus.CONFLICT,
+                    "图书《" + snapshot.getTitle() + "》库存不足，当前库存为" + snapshot.getStock());
         }
 
-        // UPDATE 持有行锁至事务结束，此处读取到的库存可用于生成准确的前后库存流水。
-        Book book = bookRepository.findById(selection.bookId())
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "图书不存在"));
-        int afterStock = book.getStock();
-        int beforeStock = afterStock + selection.quantity();
-        BigDecimal subtotal = book.getSalePrice()
+        int beforeStock = snapshot.getStock();
+        int afterStock = beforeStock - selection.quantity();
+        int affectedRows = bookRepository.decreaseStock(
+                selection.bookId(), selection.quantity(), BookStatus.ON_SALE);
+        if (affectedRows != 1) {
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "库存扣减失败");
+        }
+
+        BigDecimal subtotal = snapshot.getSalePrice()
                 .multiply(BigDecimal.valueOf(selection.quantity()));
-        validateAmount(subtotal, "图书《" + book.getTitle() + "》小计超出系统支持范围");
+        validateAmount(subtotal, "图书《" + snapshot.getTitle() + "》小计超出系统支持范围");
 
         return new DeductedLine(
-                book.getId(),
-                book.getTitle(),
-                book.getIsbn(),
-                book.getSalePrice(),
+                snapshot.getId(),
+                snapshot.getTitle(),
+                snapshot.getIsbn(),
+                snapshot.getSalePrice(),
                 selection.quantity(),
                 subtotal,
                 beforeStock,
@@ -426,18 +437,6 @@ public class OrderService {
                 address.getReceiverName(), address.getReceiverPhone(), receiverAddress);
     }
 
-    /** 库存扣减失败后区分图书不存在、下架和库存不足三种场景。 */
-    private void throwStockException(Long bookId) {
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "图书不存在"));
-        if (book.getStatus() != BookStatus.ON_SALE) {
-            throw new BusinessException(HttpStatus.CONFLICT,
-                    "图书《" + book.getTitle() + "》已下架");
-        }
-        throw new BusinessException(HttpStatus.CONFLICT,
-                "图书《" + book.getTitle() + "》库存不足，当前库存为" + book.getStock());
-    }
-
     private User getActiveUser(Long userId) {
         if (userId == null) {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
@@ -491,8 +490,23 @@ public class OrderService {
                 fallbackMessage + "，当前状态为" + current.getStatus());
     }
 
+    private BigDecimal calculatePayableAmount(
+            BigDecimal total, BigDecimal discount, BigDecimal shipping) {
+        if (total == null || discount == null || shipping == null
+                || total.signum() < 0
+                || discount.signum() < 0
+                || shipping.signum() < 0
+                || discount.compareTo(total) > 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "订单金额不合法");
+        }
+        BigDecimal payable = total.subtract(discount).add(shipping);
+        validateAmount(payable, "订单应付金额超出系统支持范围");
+        return payable;
+    }
+
     private void validateAmount(BigDecimal amount, String message) {
-        if (amount.compareTo(MAX_DATABASE_AMOUNT) > 0) {
+        if (amount == null || amount.signum() < 0
+                || amount.compareTo(MAX_DATABASE_AMOUNT) > 0) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, message);
         }
     }

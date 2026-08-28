@@ -18,6 +18,7 @@ import com.example.demo.entity.User;
 import com.example.demo.entity.UserAddress;
 import com.example.demo.repository.BookOrderRepository;
 import com.example.demo.repository.BookRepository;
+import com.example.demo.repository.BookStockSnapshot;
 import com.example.demo.repository.CartItemRepository;
 import com.example.demo.repository.InventoryLogRepository;
 import com.example.demo.repository.OrderItemRepository;
@@ -48,6 +49,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -126,8 +128,10 @@ class OrderServiceTests {
 
         when(cartItemRepository.findByUser_IdAndSelectedTrueOrderByCreateTimeDesc(1L))
                 .thenReturn(List.of(cartItem));
+        BookStockSnapshot snapshot = stockSnapshot(10L, 5, "数据库系统概论",
+                "9780000000001", new BigDecimal("20.00"), BookStatus.ON_SALE);
+        when(bookRepository.findStockSnapshotForUpdate(10L)).thenReturn(Optional.of(snapshot));
         when(bookRepository.decreaseStock(10L, 2, BookStatus.ON_SALE)).thenReturn(1);
-        when(bookRepository.findById(10L)).thenReturn(Optional.of(refreshedBook));
         when(bookOrderRepository.existsByOrderNo(anyString())).thenReturn(false);
         when(userRepository.getReferenceById(1L)).thenReturn(user);
         when(bookRepository.getReferenceById(10L)).thenReturn(refreshedBook);
@@ -169,17 +173,11 @@ class OrderServiceTests {
                 .quantity(2)
                 .selected(true)
                 .build();
-        Book currentBook = Book.builder()
-                .id(10L)
-                .title("数据库系统概论")
-                .stock(1)
-                .status(BookStatus.ON_SALE)
-                .build();
-
         when(cartItemRepository.findByUser_IdAndSelectedTrueOrderByCreateTimeDesc(1L))
                 .thenReturn(List.of(cartItem));
-        when(bookRepository.decreaseStock(10L, 2, BookStatus.ON_SALE)).thenReturn(0);
-        when(bookRepository.findById(10L)).thenReturn(Optional.of(currentBook));
+        BookStockSnapshot snapshot = stockSnapshot(10L, 1, "数据库系统概论",
+                "9780000000001", new BigDecimal("20.00"), BookStatus.ON_SALE);
+        when(bookRepository.findStockSnapshotForUpdate(10L)).thenReturn(Optional.of(snapshot));
 
         BusinessException exception = assertThrows(
                 BusinessException.class, () -> orderService.createOrder(1L, dto));
@@ -188,6 +186,18 @@ class OrderServiceTests {
         verify(bookOrderRepository, never()).saveAndFlush(any());
         verify(inventoryLogRepository, never()).saveAllAndFlush(any());
         verify(cartItemRepository, never()).deleteAllByIdInBatch(any());
+    }
+
+    private BookStockSnapshot stockSnapshot(
+            Long id, int stock, String title, String isbn, BigDecimal salePrice, BookStatus status) {
+        BookStockSnapshot snapshot = mock(BookStockSnapshot.class);
+        lenient().when(snapshot.getId()).thenReturn(id);
+        lenient().when(snapshot.getStock()).thenReturn(stock);
+        lenient().when(snapshot.getTitle()).thenReturn(title);
+        lenient().when(snapshot.getIsbn()).thenReturn(isbn);
+        lenient().when(snapshot.getSalePrice()).thenReturn(salePrice);
+        lenient().when(snapshot.getStatus()).thenReturn(status.name());
+        return snapshot;
     }
 
     @Test

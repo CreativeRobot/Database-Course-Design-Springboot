@@ -101,6 +101,25 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
             @Param("quantity") Integer quantity
     );
 
+    @Query(value = """
+            SELECT id, stock, status, sale_price, title, isbn
+            FROM book
+            WHERE id = :bookId
+            FOR UPDATE
+            """, nativeQuery = true)
+    Optional<BookStockSnapshot> findStockSnapshotForUpdate(@Param("bookId") Long bookId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("""
+            update Book book
+            set book.stock = book.stock + :change
+            where book.id = :bookId
+              and book.stock + :change >= 0
+            """)
+    int adjustStock(
+            @Param("bookId") Long bookId, @Param("change") Integer change);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("update Book book set book.salesCount = book.salesCount + :quantity where book.id = :bookId")
