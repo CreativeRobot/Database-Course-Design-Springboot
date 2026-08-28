@@ -86,6 +86,21 @@ public interface BookOrderRepository extends JpaRepository<BookOrder, Long> {
     );
 
     @Query(value = """
+            select date_format(o.completed_time, '%Y-%m-%d') as saleDate,
+                   coalesce(sum(oi.quantity), 0) as soldQuantity,
+                   coalesce(sum(oi.subtotal), 0) as salesAmount
+            from book_order o
+            join order_item oi on oi.order_id = o.id
+            where o.status = 'COMPLETED'
+              and o.completed_time >= :startTime
+            group by date_format(o.completed_time, '%Y-%m-%d')
+            order by saleDate
+            """, nativeQuery = true)
+    java.util.List<DailySalesProjection> summarizeDailySales(
+            @Param("startTime") LocalDateTime startTime
+    );
+
+    @Query(value = """
             select oi.book_id as bookId,
                    oi.book_title as bookTitle,
                    sum(oi.quantity) as soldQuantity,

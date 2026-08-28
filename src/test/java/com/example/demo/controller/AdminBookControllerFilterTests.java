@@ -21,8 +21,8 @@ class AdminBookControllerFilterTests {
 
     @Test
     void forwardsRelatedEntityFiltersToTheAdminBookQuery() {
-        controller.listBooks(BookStatus.ON_SALE, 7L, 11L, 13L, 2, 20);
+        controller.listBooks("Java", BookStatus.ON_SALE, 7L, 11L, 13L, 2, 20);
 
-        verify(bookService).listAllBooks(BookStatus.ON_SALE, 7L, 11L, 13L, 2, 20);
+        verify(bookService).listAllBooks("Java", BookStatus.ON_SALE, 7L, 11L, 13L, 2, 20);
     }
 }

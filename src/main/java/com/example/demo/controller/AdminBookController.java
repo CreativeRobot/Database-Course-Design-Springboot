@@ -40,6 +40,7 @@ public class AdminBookController {
     /** 分页查询全部图书，可按状态、作者、出版社或分类过滤（不传参数则查全部） */
     @GetMapping
     public Result<PageVo<BookVo>> listBooks(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) BookStatus status,
             @RequestParam(required = false) Long authorId,
             @RequestParam(required = false) Long publisherId,
@@ -47,7 +48,7 @@ public class AdminBookController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return Result.success(bookService.listAllBooks(
-                status, authorId, publisherId, categoryId, page, size));
+                keyword, status, authorId, publisherId, categoryId, page, size));
     }
 
     /** 查询图书详情（含已下架图书） */

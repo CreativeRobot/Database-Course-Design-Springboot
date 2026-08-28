@@ -11,6 +11,7 @@ public class AdminStatisticsVo {
     private BigDecimal salesAmount;
     private Long soldQuantity;
     private List<MonthlySalesVo> monthlySales;
+    private List<DailySalesVo> dailySales;
     private List<TopBookSalesVo> topBooks;
     private List<CategorySalesVo> categorySales;
     private List<LowStockBookVo> lowStockBooks;

@@ -97,6 +97,19 @@ class JwtAuthenticationFilterTests {
         assertEquals(200, response.getStatus());
     }
 
+    @Test
+    void allowsAnonymousAvatarGetRequestWithoutToken() throws ServletException, IOException {
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+                mock(JwtUtils.class), mock(UserRepository.class), newWriter());
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "GET", "/uploads/avatars/22/avatar.webp");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+        filter.doFilter(request, response, chain);
+        verify(chain).doFilter(request, response);
+        assertEquals(200, response.getStatus());
+    }
+
     private SecurityErrorResponseWriter newWriter() {
         return new SecurityErrorResponseWriter(new ObjectMapper());
     }

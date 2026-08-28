@@ -7,11 +7,13 @@ import com.example.demo.repository.BookOrderRepository;
 import com.example.demo.repository.BookRepository;
 import com.example.demo.repository.CategorySalesProjection;
 import com.example.demo.repository.CompletedSalesSummaryProjection;
+import com.example.demo.repository.DailySalesProjection;
 import com.example.demo.repository.MonthlySalesProjection;
 import com.example.demo.repository.OrderItemRepository;
 import com.example.demo.repository.TopBookSalesProjection;
 import com.example.demo.vo.AdminStatisticsVo;
 import com.example.demo.vo.CategorySalesVo;
+import com.example.demo.vo.DailySalesVo;
 import com.example.demo.vo.LowStockBookVo;
 import com.example.demo.vo.MonthlySalesVo;
 import com.example.demo.vo.TopBookSalesVo;
@@ -21,9 +23,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 public class AdminStatisticsService {
@@ -31,6 +38,7 @@ public class AdminStatisticsService {
     private static final int MAX_MONTHS = 24;
     private static final int MAX_TOP = 100;
     private static final int MAX_LOW_STOCK_THRESHOLD = 100_000;
+    private static final int DAILY_TREND_DAYS = 7;
 
     @Autowired
     private BookOrderRepository bookOrderRepository;
@@ -55,6 +63,7 @@ public class AdminStatisticsService {
         vo.setSalesAmount(defaultAmount(summary.getSalesAmount()));
         vo.setSoldQuantity(sumSoldQuantity());
         vo.setMonthlySales(loadMonthlySales(months));
+        vo.setDailySales(loadDailySales());
         vo.setTopBooks(loadTopBooks(top));
         vo.setCategorySales(loadCategorySales());
         vo.setLowStockBooks(loadLowStockBooks(lowStockThreshold));
@@ -79,6 +88,33 @@ public class AdminStatisticsService {
                 .toList();
     }
 
+    private List<DailySalesVo> loadDailySales() {
+        LocalDate startDate = LocalDate.now().minusDays(DAILY_TREND_DAYS - 1L);
+        Map<String, DailySalesProjection> salesByDate =
+                bookOrderRepository.summarizeDailySales(startDate.atStartOfDay()).stream()
+                        .collect(Collectors.toMap(
+                                DailySalesProjection::getSaleDate,
+                                Function.identity()));
+        return IntStream.range(0, DAILY_TREND_DAYS)
+                .mapToObj(startDate::plusDays)
+                .map(date -> toDailySalesVo(date, salesByDate.get(date.toString())))
+                .toList();
+    }
+
+    private DailySalesVo toDailySalesVo(
+            LocalDate saleDate,
+            DailySalesProjection projection
+    ) {
+        DailySalesVo vo = new DailySalesVo();
+        vo.setSaleDate(saleDate.toString());
+        vo.setSoldQuantity(projection == null
+                ? 0L
+                : defaultLong(projection.getSoldQuantity()));
+        vo.setSalesAmount(projection == null
+                ? BigDecimal.ZERO
+                : defaultAmount(projection.getSalesAmount()));
+        return vo;
+    }
     private List<TopBookSalesVo> loadTopBooks(int top) {
         return bookOrderRepository.findTopSellingBooks(top).stream()
                 .map(this::toTopBookSalesVo)

@@ -171,12 +171,16 @@ public class BookService {
     /** 管理端分页查询全部图书（含下架），可按状态、作者、出版社或分类过滤。 */
     @Transactional(readOnly = true)
     public PageVo<BookVo> listAllBooks(
-            BookStatus status, Long authorId, Long publisherId, Long categoryId, int page, int size) {
+            String keyword, BookStatus status, Long authorId, Long publisherId, Long categoryId, int page, int size) {
         Pageable pageable = buildPageable(page, size);
         List<Long> categoryIds = categoryId == null ? List.of() : resolveSearchCategoryIds(categoryId);
         Specification<Book> spec = (root, query, cb) -> {
             query.distinct(true);
             List<Predicate> predicates = new ArrayList<>();
+            if (StringUtils.hasText(keyword)) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("title")), pattern));
+            }
             if (status != null) predicates.add(cb.equal(root.get("status"), status));
             if (authorId != null) predicates.add(existsAuthor(query, cb, root, authorId));
             if (publisherId != null) predicates.add(cb.equal(root.get("publisher").get("id"), publisherId));

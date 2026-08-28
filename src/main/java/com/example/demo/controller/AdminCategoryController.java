@@ -31,14 +31,16 @@ public class AdminCategoryController {
 
     @GetMapping("/tree")
     public Result<List<CategoryVo>> listCategoryTree(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status) {
-        return Result.success(categoryService.listCategoryTree(status));
+        return Result.success(categoryService.listCategoryTree(keyword, status));
     }
 
     @GetMapping
     public Result<List<CategoryVo>> listCategories(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status) {
-        return Result.success(categoryService.listCategories(status));
+        return Result.success(categoryService.listCategories(keyword, status));
     }
 
     @GetMapping("/{categoryId}")

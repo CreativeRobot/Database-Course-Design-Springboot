@@ -32,21 +32,42 @@ public class CategoryService {
     /** 查询全部分类，可按启用状态过滤。 */
     @Transactional(readOnly = true)
     public List<CategoryVo> listCategories(Integer status) {
+        return listCategories(null, status);
+    }
+
+    /** 查询全部分类，可按名称和启用状态过滤。 */
+    @Transactional(readOnly = true)
+    public List<CategoryVo> listCategories(String keyword, Integer status) {
         if (status != null) {
             validateStatus(status);
         }
-        List<Category> categories = status == null
-                ? categoryRepository.findAll(Sort.by(
-                        Sort.Order.asc("sortOrder"), Sort.Order.asc("name")))
-                : categoryRepository.findByStatusOrderBySortOrderAscNameAsc(status);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        List<Category> categories;
+        if (normalizedKeyword == null && status == null) {
+            categories = categoryRepository.findAll(Sort.by(
+                    Sort.Order.asc("sortOrder"), Sort.Order.asc("name")));
+        } else if (normalizedKeyword == null) {
+            categories = categoryRepository.findByStatusOrderBySortOrderAscNameAsc(status);
+        } else if (status == null) {
+            categories = categoryRepository
+                    .findByNameContainingIgnoreCaseOrderBySortOrderAscNameAsc(normalizedKeyword);
+        } else {
+            categories = categoryRepository
+                    .findByStatusAndNameContainingIgnoreCaseOrderBySortOrderAscNameAsc(
+                            status, normalizedKeyword);
+        }
         return categories.stream().map(this::toVo).toList();
     }
 
-
-    /** 按父子层级查询分类树，可按启用状态过滤。 */
+    /** 按父子层级查询分类树，可按名称和启用状态过滤。 */
     @Transactional(readOnly = true)
     public List<CategoryVo> listCategoryTree(Integer status) {
-        List<CategoryVo> categories = listCategories(status);
+        return listCategoryTree(null, status);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoryVo> listCategoryTree(String keyword, Integer status) {
+        List<CategoryVo> categories = listCategories(keyword, status);
         java.util.Map<Long, CategoryVo> categoriesById = new java.util.LinkedHashMap<>();
         for (CategoryVo category : categories) {
             categoriesById.put(category.getId(), category);
