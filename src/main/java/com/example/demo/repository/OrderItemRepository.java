@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from OrderItem i join fetch i.order join fetch i.book where i.id = :itemId")
+    Optional<OrderItem> findByIdForUpdate(@Param("itemId") Long itemId);
     List<OrderItem> findByOrder_IdOrderByIdAsc(Long orderId);
 
     List<OrderItem> findByBook_IdOrderByIdDesc(Long bookId);

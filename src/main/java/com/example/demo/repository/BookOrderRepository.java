@@ -15,6 +15,9 @@ import java.util.Collection;
 import java.util.Optional;
 
 public interface BookOrderRepository extends JpaRepository<BookOrder, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from BookOrder o where o.id = :orderId")
+    Optional<BookOrder> findByIdForUpdate(@Param("orderId") Long orderId);
     Optional<BookOrder> findByOrderNo(String orderNo);
 
     Optional<BookOrder> findByIdAndUser_Id(Long orderId, Long userId);

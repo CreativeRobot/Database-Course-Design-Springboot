@@ -66,6 +66,10 @@ public class BookOrder {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal payableAmount;//实付金额
 
+    @Builder.Default
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal refundedAmount = BigDecimal.ZERO;//累计退款金额
+
     //收货信息
     @Column(nullable = true)
     private LocalDateTime expireTime;

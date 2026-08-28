@@ -56,6 +56,10 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer quantity;//数量
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer refundedQuantity = 0;//累计退货/退款数量
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal subtotal;//总价
 }
