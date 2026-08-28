@@ -1,15 +1,7 @@
--- Bookstore schema for MySQL 8.0+
--- Legacy compatibility snapshot only. Application schema is authoritatively managed by Flyway migrations under src/main/resources/db/migration.
+-- Flyway baseline schema for MySQL 8.0+
+-- Flyway owns version execution; this migration assumes the JDBC database already exists.
 
-CREATE DATABASE IF NOT EXISTS bookstore
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_0900_ai_ci;
-
-USE bookstore;
-
-SET NAMES utf8mb4;
-
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id BIGINT NOT NULL AUTO_INCREMENT,
     username VARCHAR(30) NOT NULL,
     password VARCHAR(100) NOT NULL,
@@ -26,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT chk_users_status CHECK (status IN (0, 1))
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS publisher (
+CREATE TABLE publisher (
     id BIGINT NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NULL,
@@ -38,7 +30,7 @@ CREATE TABLE IF NOT EXISTS publisher (
     CONSTRAINT uk_publisher_name UNIQUE (name)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS author (
+CREATE TABLE author (
     id BIGINT NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     country VARCHAR(50) NULL,
@@ -48,7 +40,7 @@ CREATE TABLE IF NOT EXISTS author (
     PRIMARY KEY (id)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS category (
+CREATE TABLE category (
     id BIGINT NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     parent_id BIGINT NULL,
@@ -67,7 +59,7 @@ CREATE TABLE IF NOT EXISTS category (
     CONSTRAINT chk_category_status CHECK (status IN (0, 1))
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS book (
+CREATE TABLE book (
     id BIGINT NOT NULL AUTO_INCREMENT,
     isbn VARCHAR(20) NOT NULL,
     title VARCHAR(200) NOT NULL,
@@ -75,7 +67,6 @@ CREATE TABLE IF NOT EXISTS book (
     original_price DECIMAL(10, 2) NOT NULL,
     sale_price DECIMAL(10, 2) NOT NULL,
     stock INT NOT NULL DEFAULT 0,
-    sales_count BIGINT NOT NULL DEFAULT 0,
     publish_date DATE NULL,
     edition VARCHAR(30) NULL,
     pages INT NULL,
@@ -96,11 +87,10 @@ CREATE TABLE IF NOT EXISTS book (
     CONSTRAINT chk_book_sale_price CHECK (sale_price >= 0),
     CONSTRAINT chk_book_price_order CHECK (sale_price <= original_price),
     CONSTRAINT chk_book_stock CHECK (stock >= 0),
-    CONSTRAINT chk_book_sales_count CHECK (sales_count >= 0),
     CONSTRAINT chk_book_pages CHECK (pages IS NULL OR pages > 0)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS book_author (
+CREATE TABLE book_author (
     book_id BIGINT NOT NULL,
     author_id BIGINT NOT NULL,
     author_order INT NOT NULL DEFAULT 1,
@@ -116,7 +106,7 @@ CREATE TABLE IF NOT EXISTS book_author (
     CONSTRAINT chk_book_author_order CHECK (author_order > 0)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS book_category (
+CREATE TABLE book_category (
     book_id BIGINT NOT NULL,
     category_id BIGINT NOT NULL,
     PRIMARY KEY (book_id, category_id),
@@ -130,7 +120,7 @@ CREATE TABLE IF NOT EXISTS book_category (
         ON DELETE RESTRICT
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS user_address (
+CREATE TABLE user_address (
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     receiver_name VARCHAR(50) NOT NULL,
@@ -151,7 +141,7 @@ CREATE TABLE IF NOT EXISTS user_address (
         ON DELETE RESTRICT
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS cart_item (
+CREATE TABLE cart_item (
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     book_id BIGINT NOT NULL,
@@ -173,7 +163,7 @@ CREATE TABLE IF NOT EXISTS cart_item (
     CONSTRAINT chk_cart_quantity CHECK (quantity BETWEEN 1 AND 999)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS book_order (
+CREATE TABLE book_order (
     id BIGINT NOT NULL AUTO_INCREMENT,
     order_no VARCHAR(32) NOT NULL,
     user_id BIGINT NOT NULL,
@@ -214,7 +204,7 @@ CREATE TABLE IF NOT EXISTS book_order (
     CONSTRAINT chk_order_payable_amount CHECK (payable_amount >= 0)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS order_item (
+CREATE TABLE order_item (
     id BIGINT NOT NULL AUTO_INCREMENT,
     order_id BIGINT NOT NULL,
     book_id BIGINT NOT NULL,
@@ -239,7 +229,7 @@ CREATE TABLE IF NOT EXISTS order_item (
     CONSTRAINT chk_order_item_subtotal CHECK (subtotal >= 0)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS payment (
+CREATE TABLE payment (
     id BIGINT NOT NULL AUTO_INCREMENT,
     payment_no VARCHAR(50) NOT NULL,
     order_id BIGINT NOT NULL,
@@ -260,7 +250,7 @@ CREATE TABLE IF NOT EXISTS payment (
     CONSTRAINT chk_payment_amount CHECK (amount >= 0)
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS book_review (
+CREATE TABLE book_review (
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     book_id BIGINT NOT NULL,
@@ -289,7 +279,7 @@ CREATE TABLE IF NOT EXISTS book_review (
     CONSTRAINT chk_review_status CHECK (status IN (0, 1))
 ) ENGINE = InnoDB;
 
-CREATE TABLE IF NOT EXISTS inventory_log (
+CREATE TABLE inventory_log (
     id BIGINT NOT NULL AUTO_INCREMENT,
     book_id BIGINT NOT NULL,
     change_quantity INT NOT NULL,

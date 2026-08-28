@@ -62,7 +62,7 @@ public class Book {
     private Integer stock = 0;//库存
 
     @Builder.Default
-    @Column(nullable = false, columnDefinition = "int default 0")
+    @Column(nullable = false)
     private Long salesCount = 0L;//已完成订单累计销量
 
     private LocalDate publishDate;

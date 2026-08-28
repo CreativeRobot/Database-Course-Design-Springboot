@@ -28,3 +28,26 @@
 ## 约束
 - 不执行脚本、不直接向数据库写入数据。
 - 只使用 `sql/02_data.sql` 已建立的客户与图书。
+
+---
+
+# Flyway + Empty-Database Validation
+
+## Goal
+Adopt Flyway as the only schema migration mechanism, fix the missing `book.sales_count` schema column, and test migrations against an empty MySQL Testcontainer with Hibernate `validate` enabled.
+
+## Phases
+- [completed] 1. Commit pre-existing working-tree changes without user-upload runtime data.
+- [completed] 2. Add a failing blank-database migration validation test.
+- [completed] 3. Add Flyway baseline migration and application configuration.
+- [completed] 4. Verify targeted tests, support an existing schema without history, and commit the implementation.
+
+## Constraints
+- Keep Hibernate at `ddl-auto=validate`.
+- Do not use Hibernate DDL generation to mask schema drift.
+- Keep `uploads/avatars/22/` untracked.
+## Errors Encountered
+| Error | Attempt | Resolution |
+|---|---:|---|
+| Full Maven test could not start two Spring contexts because the non-empty local `bookstore` schema has no Flyway history table. | 1 | Baseline existing schemas at V1 and introduce an idempotent V2 migration for `book.sales_count`. |
+| Full Maven suite retains one unrelated environment configuration failure: `DemoApplicationTests` supplies no `DB_URL`, so Spring receives the literal `${DB_URL}` as a JDBC URL. | 2 | Logged as pre-existing test configuration debt; migration-specific tests pass and the live legacy schema was baselined then migrated successfully. |

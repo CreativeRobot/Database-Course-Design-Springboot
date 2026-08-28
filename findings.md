@@ -1,9 +1,11 @@
-# Findings
+# Flyway Schema Validation Findings
 
-- 2026-08-26：后端 `127.0.0.1:8080` 正在监听，`GET /api/categories` 与 `GET /api/books` 返回 HTTP 200 且有数据，说明公共图书内容和数据库可用。
-- 同一后端上 `GET /api/recommendations/home`（不携带 Authorization）返回 401；该接口按设计要求要求登录后的 Bearer Token。
-- `SecurityConfig` 仅将图书、分类、作者、出版社的 GET 请求公开；推荐、购物车、订单、资料等均须携带有效 JWT。
-- Flutter `ApiClient` 会从 SharedPreferences 读取 `bookstore.jwt` 并为每个请求添加 `Authorization: Bearer <token>`；任何 401 都会清除本地 token 并触发会话过期。
-- 根因已复现：浏览器发出携带 Authorization 的跨域请求前，都会先发送 OPTIONS 预检。`OPTIONS /api/auth/login` 返回 200 且带 CORS 响应头，但 `OPTIONS /api/books`、`/api/categories`、`/api/recommendations/home`、`/api/user/me` 和 `/api/cart` 都返回 401，且没有 `Access-Control-Allow-Origin`。
-- `JwtAuthenticationFilter` 已跳过 OPTIONS，但 `SecurityConfig` 没有启用 Spring Security CORS（未调用 `http.cors(...)`），也没有放行 OPTIONS；因此后续仍被 `.anyRequest().authenticated()` 拦截。WebMvcConfig 的 CORS 映射无法在该安全拦截之前完成预检响应。
-- 这解释了现象：登录接口路径被 permitAll，预检成功；登录后其它接口的预检被浏览器阻断，Flutter 将请求异常映射为“服务暂时不可用/无法加载”。即使 `/api/books` 本身是公开 GET，登录后拦截器添加 Authorization 也会触发预检，故同样失败。
+## 2026-08-28
+- Existing `sql/01_schema.sql` includes `users.avatar_url` but omits `book.sales_count`; the entity and repository already require `salesCount`.
+- Existing MySQL Testcontainers coverage uses `spring.jpa.hibernate.ddl-auto=create-drop`, so it validates Hibernate-generated DDL rather than the official SQL schema.
+- The repository has untracked runtime avatar data at `uploads/avatars/22/`; it is excluded from both commits.
+- Docker is unavailable in the current execution environment (`docker` is not recognized), so the Testcontainers migration test is correctly skipped by its class-level condition. A fast resource-level RED test will guard the presence and contents of the Flyway baseline locally; the Testcontainers test remains the authoritative runtime proof in Docker-capable CI.
+- First implementation write attempt failed before modifying implementation files because PowerShell/.NET regex does not support `\R`. Inspected the repository and confirmed only the migration directory was created; reimplemented the transformation using line-based processing.
+- Removed the obsolete manual `sql/02_add_user_avatar_url.sql` script: its ALTER is already represented by the Flyway V1 baseline, and retaining it would invite duplicate-column failures and preserve a second schema-evolution path.
+- Full Maven testing exposed that two existing Spring context tests deliberately start against the populated local `bookstore` database. On 2026-08-28, it is MySQL 8.0.39, has `book.sales_count`, and has no `flyway_schema_history`; plain Flyway initialization therefore fails before Hibernate validation. The migration strategy must baseline such pre-Flyway schemas at V1 and keep the sales-count change as an idempotent V2 migration.
+- Running the full suite after the baseline/V2 change created `flyway_schema_history` in the local development schema, registered V1 as `BASELINE`, and successfully applied V2. The remaining full-suite failure is `DemoApplicationTests` with no datasource variables: it passes literal `${DB_URL}` to MySQL. This is independent of Flyway; all other report files are green, and the focused migration suite passes with the Docker-backed test skipped only because Docker is unavailable.
