@@ -29,10 +29,6 @@ import com.example.demo.vo.OrderVo;
 import com.example.demo.vo.PageVo;
 import com.example.demo.vo.PaymentVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,6 +86,9 @@ public class OrderService {
 
     @Autowired
     private InventoryService inventoryService;
+
+    @Autowired
+    private OrderQueryService orderQueryService;
 
     // ==================== 订单写操作 ====================
 
@@ -285,42 +284,33 @@ public class OrderService {
 
     /** 原子扣减一本图书的库存，并生成后续订单明细和流水所需的快照。 */
     @Transactional(readOnly = true)
-    public PageVo<OrderVo> listUserOrders(
-            Long userId, OrderStatus status, int page, int size) {
-        getActiveUser(userId);
-        Pageable pageable = buildOrderPageable(page, size);
-        Page<BookOrder> orders = status == null
-                ? bookOrderRepository.findByUser_IdOrderByCreateTimeDesc(userId, pageable)
-                : bookOrderRepository.findByUser_IdAndStatusOrderByCreateTimeDesc(
-                        userId, status, pageable);
-        return PageVo.of(orders.map(this::toOrderVoWithItems));
+    public PageVo<OrderVo> listUserOrders(Long userId, OrderStatus status, int page, int size) {
+        return queryService().listUserOrders(userId, status, page, size);
     }
 
     @Transactional(readOnly = true)
     public OrderVo getUserOrder(Long userId, Long orderId) {
-        getActiveUser(userId);
-        return toOrderVoWithItems(getOwnedOrder(userId, orderId));
+        return queryService().getUserOrder(userId, orderId);
     }
 
     @Transactional(readOnly = true)
     public PageVo<OrderVo> listAdminOrders(
             String orderNo, Long userId, OrderStatus status, int page, int size) {
-        if (userId != null && userId <= 0) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "用户 ID 必须为正数");
-        }
-        Pageable pageable = buildOrderPageable(page, size);
-        String normalizedOrderNo = StringUtils.hasText(orderNo)
-                ? orderNo.trim() : null;
-        Page<BookOrder> orders = bookOrderRepository.searchForAdmin(
-                normalizedOrderNo, userId, status, pageable);
-        return PageVo.of(orders.map(this::toOrderVoWithItems));
+        return queryService().listAdminOrders(orderNo, userId, status, page, size);
     }
 
     @Transactional(readOnly = true)
     public OrderVo getAdminOrder(Long orderId) {
-        return toOrderVoWithItems(getOrder(orderId));
+        return queryService().getAdminOrder(orderId);
     }
 
+    private OrderQueryService queryService() {
+        // Spring wiring supplies the extracted collaborator; this fallback keeps legacy
+        // field-injection unit tests focused on the facade behavior.
+        return orderQueryService != null
+                ? orderQueryService
+                : new OrderQueryService(bookOrderRepository, orderItemRepository, userRepository);
+    }
     private DeductedLine deductStock(CartSelection selection) {
         BookStockSnapshot snapshot = bookRepository
                 .findStockSnapshotForUpdate(selection.bookId())
@@ -553,27 +543,6 @@ public class OrderService {
         return toOrderVo(order, items);
     }
 
-    private OrderVo toOrderVoWithItems(BookOrder order) {
-        return toOrderVo(
-                order,
-                orderItemRepository.findByOrder_IdOrderByIdAsc(order.getId()));
-    }
-
-    private Pageable buildOrderPageable(int page, int size) {
-        if (page < 1) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "页码必须从 1 开始");
-        }
-        if (size < 1 || size > 100) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST, "每页数量必须在 1 到 100 之间");
-        }
-        return PageRequest.of(
-                page - 1,
-                size,
-                Sort.by(
-                        Sort.Order.desc("createTime"),
-                        Sort.Order.desc("id")));
-    }
 
     private OrderVo toOrderVo(BookOrder order, List<OrderItem> items) {
         OrderVo vo = new OrderVo();
