@@ -16,6 +16,8 @@ public class CartItemVo {
     private BigDecimal salePrice;
     private Integer stock;
     private BookStatus bookStatus;
+    private Boolean preSale;
+    private LocalDateTime preSaleReleaseTime;
     private Integer quantity;
     private Boolean selected;
     private Boolean available;

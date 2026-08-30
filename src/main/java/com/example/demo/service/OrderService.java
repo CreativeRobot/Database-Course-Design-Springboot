@@ -243,6 +243,13 @@ public class OrderService {
     public OrderVo shipOrder(Long orderId) {
         BookOrder order = getOrder(orderId);
         requireOrderStatus(order, OrderStatus.PENDING_SHIPMENT, "只有待发货订单可以发货");
+        LocalDateTime latestReleaseTime = orderItemRepository.findByOrder_IdOrderByIdAsc(orderId).stream()
+                .filter(item -> Boolean.TRUE.equals(item.getPreSale()))
+                .map(OrderItem::getPreSaleReleaseTime).filter(java.util.Objects::nonNull)
+                .max(LocalDateTime::compareTo).orElse(null);
+        if (latestReleaseTime != null && latestReleaseTime.isAfter(LocalDateTime.now())) {
+            throw new BusinessException(HttpStatus.CONFLICT, "订单包含预售图书，预计 " + latestReleaseTime + " 后可发货");
+        }
 
         int affectedRows = bookOrderRepository.shipPendingOrder(
                 orderId,
@@ -344,7 +351,9 @@ public class OrderService {
                 selection.quantity(),
                 subtotal,
                 beforeStock,
-                afterStock
+                afterStock,
+                BookPreSalePolicy.isActive(snapshot.getPreSale(), snapshot.getPreSaleReleaseTime(), LocalDateTime.now()),
+                snapshot.getPreSaleReleaseTime()
         );
     }
 
@@ -358,6 +367,8 @@ public class OrderService {
                         .isbn(line.isbn())
                         .unitPrice(line.unitPrice())
                         .quantity(line.quantity())
+                        .preSale(line.preSale())
+                        .preSaleReleaseTime(line.preSaleReleaseTime())
                         .subtotal(line.subtotal())
                         .build())
                 .toList();
@@ -609,7 +620,9 @@ public class OrderService {
             Integer quantity,
             BigDecimal subtotal,
             Integer beforeStock,
-            Integer afterStock) {
+            Integer afterStock,
+            Boolean preSale,
+            LocalDateTime preSaleReleaseTime) {
     }
 
     private record AddressSnapshot(

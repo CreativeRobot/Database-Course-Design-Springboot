@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -33,6 +34,10 @@ public class BookUpdateDTO {
     @DecimalMin(value = "0.00", message = "售价不能为负数")
     @Digits(integer = 8, fraction = 2, message = "售价格式不正确")
     private BigDecimal salePrice;
+
+    private Boolean preSale;
+
+    private LocalDateTime preSaleReleaseTime;
 
     private LocalDate publishDate;
 

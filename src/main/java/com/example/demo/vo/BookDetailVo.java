@@ -23,6 +23,8 @@ public class BookDetailVo {
     private BigDecimal originalPrice;
     private BigDecimal salePrice;
     private Integer stock;
+    private Boolean preSale;
+    private LocalDateTime preSaleReleaseTime;
     private LocalDate publishDate;
     private String edition;
     private Integer pages;

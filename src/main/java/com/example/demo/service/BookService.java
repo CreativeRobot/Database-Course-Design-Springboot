@@ -41,6 +41,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -220,6 +221,7 @@ public class BookService {
             throw new BusinessException(HttpStatus.CONFLICT, "该ISBN已存在");
         }
         validatePrices(dto.getOriginalPrice(), dto.getSalePrice());
+        BookPreSalePolicy.validateConfiguration(dto.getPreSale(), dto.getPreSaleReleaseTime(), LocalDateTime.now());
 
         Publisher publisher = publisherRepository.findById(dto.getPublisherId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "出版社不存在"));
@@ -236,6 +238,8 @@ public class BookService {
                 .originalPrice(dto.getOriginalPrice())
                 .salePrice(dto.getSalePrice())
                 .stock(initialStock)
+                .preSale(Boolean.TRUE.equals(dto.getPreSale()))
+                .preSaleReleaseTime(Boolean.TRUE.equals(dto.getPreSale()) ? dto.getPreSaleReleaseTime() : null)
                 .publishDate(dto.getPublishDate())
                 .edition(trimToNull(dto.getEdition()))
                 .pages(dto.getPages())
@@ -284,6 +288,8 @@ public class BookService {
         validatePrices(prices.original(), prices.sale());
         book.setOriginalPrice(prices.original());
         book.setSalePrice(prices.sale());
+
+        applyPreSaleUpdate(book, dto);
 
         if (dto.getPublishDate() != null) {
             book.setPublishDate(dto.getPublishDate());
@@ -402,6 +408,15 @@ public class BookService {
         if (dto.getAuthorIds() != null && dto.getAuthorIds().isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "至少需要一位作者");
         }
+    }
+
+    private void applyPreSaleUpdate(Book book, BookUpdateDTO dto) {
+        if (dto.getPreSale() == null && dto.getPreSaleReleaseTime() == null) return;
+        boolean preSale = dto.getPreSale() != null ? Boolean.TRUE.equals(dto.getPreSale()) : Boolean.TRUE.equals(book.getPreSale());
+        LocalDateTime releaseTime = dto.getPreSaleReleaseTime() != null ? dto.getPreSaleReleaseTime() : book.getPreSaleReleaseTime();
+        BookPreSalePolicy.validateConfiguration(preSale, releaseTime, LocalDateTime.now());
+        book.setPreSale(preSale);
+        book.setPreSaleReleaseTime(preSale ? releaseTime : null);
     }
 
     private Pageable buildPageable(int page, int size) {
@@ -523,6 +538,8 @@ public class BookService {
         vo.setOriginalPrice(book.getOriginalPrice());
         vo.setSalePrice(book.getSalePrice());
         vo.setStock(book.getStock());
+        vo.setPreSale(BookPreSalePolicy.isActive(book.getPreSale(), book.getPreSaleReleaseTime(), LocalDateTime.now()));
+        vo.setPreSaleReleaseTime(book.getPreSaleReleaseTime());
         vo.setStatus(book.getStatus());
         vo.setCoverUrl(book.getCoverUrl());
         return vo;
@@ -538,6 +555,8 @@ public class BookService {
         vo.setOriginalPrice(book.getOriginalPrice());
         vo.setSalePrice(book.getSalePrice());
         vo.setStock(book.getStock());
+        vo.setPreSale(BookPreSalePolicy.isActive(book.getPreSale(), book.getPreSaleReleaseTime(), LocalDateTime.now()));
+        vo.setPreSaleReleaseTime(book.getPreSaleReleaseTime());
         vo.setPublishDate(book.getPublishDate());
         vo.setEdition(book.getEdition());
         vo.setPages(book.getPages());

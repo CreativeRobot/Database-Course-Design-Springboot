@@ -1,6 +1,7 @@
 package com.example.demo.repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /** Scalar database snapshot used while a book row is locked for stock mutation. */
 public interface BookStockSnapshot {
@@ -15,4 +16,8 @@ public interface BookStockSnapshot {
     String getTitle();
 
     String getIsbn();
+
+    Boolean getPreSale();
+
+    LocalDateTime getPreSaleReleaseTime();
 }

@@ -145,6 +145,8 @@ if (userId == null) {
         vo.setUnitPrice(item.getUnitPrice());
         vo.setQuantity(item.getQuantity());
         vo.setSubtotal(item.getSubtotal());
+        vo.setPreSale(item.getPreSale());
+        vo.setPreSaleReleaseTime(item.getPreSaleReleaseTime());
         return vo;
     }
 }

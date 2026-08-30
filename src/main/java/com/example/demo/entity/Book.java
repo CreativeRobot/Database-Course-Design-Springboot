@@ -65,6 +65,12 @@ public class Book {
     @Column(nullable = false)
     private Long salesCount = 0L;//已完成订单累计销量
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean preSale = false;//是否配置为预售
+
+    private LocalDateTime preSaleReleaseTime;//预计发售/可发货时间
+
     private LocalDate publishDate;
 
     @Column(length = 30)

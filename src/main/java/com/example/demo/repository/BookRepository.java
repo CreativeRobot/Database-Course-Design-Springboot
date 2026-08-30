@@ -102,7 +102,7 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
     );
 
     @Query(value = """
-            SELECT id, stock, status, sale_price, title, isbn
+            SELECT id, stock, status, sale_price, title, isbn, pre_sale, pre_sale_release_time
             FROM book
             WHERE id = :bookId
             FOR UPDATE

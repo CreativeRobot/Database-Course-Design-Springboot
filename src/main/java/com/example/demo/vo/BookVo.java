@@ -4,6 +4,7 @@ import com.example.demo.entity.BookStatus;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * 图书列表项视图对象
@@ -18,6 +19,8 @@ public class BookVo {
     private BigDecimal originalPrice;
     private BigDecimal salePrice;
     private Integer stock;
+    private Boolean preSale;
+    private LocalDateTime preSaleReleaseTime;
     private BookStatus status;
     private String coverUrl;
 }

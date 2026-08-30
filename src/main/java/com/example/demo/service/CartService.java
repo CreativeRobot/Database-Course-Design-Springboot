@@ -224,6 +224,8 @@ public class CartService {
         vo.setSalePrice(book.getSalePrice());
         vo.setStock(book.getStock());
         vo.setBookStatus(book.getStatus());
+        vo.setPreSale(BookPreSalePolicy.isActive(book.getPreSale(), book.getPreSaleReleaseTime(), java.time.LocalDateTime.now()));
+        vo.setPreSaleReleaseTime(book.getPreSaleReleaseTime());
         vo.setQuantity(item.getQuantity());
         vo.setSelected(item.getSelected());
         vo.setAvailable(book.getStatus() == BookStatus.ON_SALE

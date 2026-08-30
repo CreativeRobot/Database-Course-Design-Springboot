@@ -16,6 +16,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -59,6 +60,12 @@ public class OrderItem {
     @Builder.Default
     @Column(nullable = false)
     private Integer refundedQuantity = 0;//累计退货/退款数量
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean preSale = false;//下单时是否为预售
+
+    private LocalDateTime preSaleReleaseTime;//下单时预计发售时间快照
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal subtotal;//总价

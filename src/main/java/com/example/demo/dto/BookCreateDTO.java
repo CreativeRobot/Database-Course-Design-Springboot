@@ -11,6 +11,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -39,6 +40,10 @@ public class BookCreateDTO {
 
     @Min(value = 0, message = "库存不能为负数")
     private Integer stock;
+
+    private Boolean preSale;
+
+    private LocalDateTime preSaleReleaseTime;
 
     private LocalDate publishDate;
 

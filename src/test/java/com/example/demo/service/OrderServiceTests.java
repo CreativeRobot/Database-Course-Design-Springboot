@@ -355,6 +355,47 @@ class OrderServiceTests {
     }
 
     @Test
+    void shipOrderRejectsPreSaleBooksBeforeReleaseTime() {
+        BookOrder pendingShipment = BookOrder.builder()
+                .id(30L)
+                .status(OrderStatus.PENDING_SHIPMENT)
+                .build();
+        Book preSaleBook = Book.builder()
+                .id(10L)
+                .title("预售图书")
+                .isbn("9780000000001")
+                .salePrice(new BigDecimal("80.00"))
+                .build();
+        OrderItem preSaleItem = OrderItem.builder()
+                .id(40L)
+                .order(pendingShipment)
+                .book(preSaleBook)
+                .bookTitle(preSaleBook.getTitle())
+                .isbn(preSaleBook.getIsbn())
+                .unitPrice(preSaleBook.getSalePrice())
+                .quantity(1)
+                .subtotal(preSaleBook.getSalePrice())
+                .preSale(true)
+                .preSaleReleaseTime(LocalDateTime.now().plusDays(1))
+                .build();
+
+        when(bookOrderRepository.findById(30L)).thenReturn(Optional.of(pendingShipment));
+        when(orderItemRepository.findByOrder_IdOrderByIdAsc(30L))
+                .thenReturn(List.of(preSaleItem));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> orderService.shipOrder(30L));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        verify(bookOrderRepository, never()).shipPendingOrder(
+                org.mockito.ArgumentMatchers.eq(30L),
+                any(OrderStatus.class),
+                any(OrderStatus.class),
+                any(LocalDateTime.class));
+    }
+
+    @Test
     void completeOrderMovesShippedOrderToCompleted() {
         BookOrder shipped = BookOrder.builder()
                 .id(30L)
