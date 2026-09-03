@@ -74,6 +74,9 @@ public class BookService {
     private InventoryLogRepository inventoryLogRepository;
 
     @Autowired
+    private BookPromotionService bookPromotionService;
+
+    @Autowired
     private RecommendationService recommendationService;
 
     // ==================== 公开查询（仅在售图书） ====================
@@ -536,7 +539,9 @@ public class BookService {
         vo.setPublisherId(book.getPublisher().getId());
         vo.setPublisherName(book.getPublisher().getName());
         vo.setOriginalPrice(book.getOriginalPrice());
-        vo.setSalePrice(book.getSalePrice());
+        vo.setBaseSalePrice(book.getSalePrice());
+        vo.setSalePrice(bookPromotionService.effectivePrice(book));
+        vo.setPromotion(bookPromotionService.current(book.getId()).map(bookPromotionService::toSummary).orElse(null));
         vo.setStock(book.getStock());
         vo.setPreSale(BookPreSalePolicy.isActive(book.getPreSale(), book.getPreSaleReleaseTime(), LocalDateTime.now()));
         vo.setPreSaleReleaseTime(book.getPreSaleReleaseTime());
@@ -553,7 +558,9 @@ public class BookService {
         vo.setPublisherId(book.getPublisher().getId());
         vo.setPublisherName(book.getPublisher().getName());
         vo.setOriginalPrice(book.getOriginalPrice());
-        vo.setSalePrice(book.getSalePrice());
+        vo.setBaseSalePrice(book.getSalePrice());
+        vo.setSalePrice(bookPromotionService.effectivePrice(book));
+        vo.setPromotion(bookPromotionService.current(book.getId()).map(bookPromotionService::toSummary).orElse(null));
         vo.setStock(book.getStock());
         vo.setPreSale(BookPreSalePolicy.isActive(book.getPreSale(), book.getPreSaleReleaseTime(), LocalDateTime.now()));
         vo.setPreSaleReleaseTime(book.getPreSaleReleaseTime());

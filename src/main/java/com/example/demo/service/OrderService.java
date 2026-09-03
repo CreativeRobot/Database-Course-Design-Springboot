@@ -4,6 +4,9 @@ import com.example.demo.common.exception.BusinessException;
 import com.example.demo.dto.CreateOrderDTO;
 import com.example.demo.dto.PayOrderDTO;
 import com.example.demo.entity.Book;
+import com.example.demo.entity.BookBundle;
+import com.example.demo.entity.OrderBundleApplication;
+import com.example.demo.entity.OrderBundleApplicationItem;
 import com.example.demo.entity.BookOrder;
 import com.example.demo.entity.BookStatus;
 import com.example.demo.entity.CartItem;
@@ -21,9 +24,13 @@ import com.example.demo.repository.BookStockSnapshot;
 import com.example.demo.repository.CartItemRepository;
 import com.example.demo.repository.InventoryLogRepository;
 import com.example.demo.repository.OrderItemRepository;
+import com.example.demo.repository.OrderBundleApplicationRepository;
+import com.example.demo.repository.OrderBundleApplicationItemRepository;
 import com.example.demo.repository.PaymentRepository;
 import com.example.demo.repository.UserAddressRepository;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.vo.OrderBundleApplicationItemVo;
+import com.example.demo.vo.OrderBundleApplicationVo;
 import com.example.demo.vo.OrderItemVo;
 import com.example.demo.vo.OrderVo;
 import com.example.demo.vo.PageVo;
@@ -40,6 +47,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 
 /**
@@ -64,6 +73,12 @@ public class OrderService {
     private OrderItemRepository orderItemRepository;
 
     @Autowired
+    private OrderBundleApplicationRepository orderBundleApplicationRepository;
+
+    @Autowired
+    private OrderBundleApplicationItemRepository orderBundleApplicationItemRepository;
+
+    @Autowired
     private InventoryLogRepository inventoryLogRepository;
 
     @Autowired
@@ -71,6 +86,9 @@ public class OrderService {
 
     @Autowired
     private BookRepository bookRepository;
+
+    @Autowired
+    private BookPromotionService bookPromotionService;
 
     @Autowired
     private CartItemRepository cartItemRepository;
@@ -89,6 +107,12 @@ public class OrderService {
 
     @Autowired
     private OrderQueryService orderQueryService;
+
+    @Autowired
+    private BookBundleService bookBundleService;
+
+    @Autowired
+    private BundlePricingService bundlePricingService;
 
     // ==================== 订单写操作 ====================
 
@@ -111,23 +135,23 @@ public class OrderService {
         selections.sort(Comparator.comparing(CartSelection::bookId));
 
         List<DeductedLine> deductedLines = new ArrayList<>();
-        BigDecimal totalAmount = BigDecimal.ZERO;
         for (CartSelection selection : selections) {
-            DeductedLine line = deductStock(selection);
-            deductedLines.add(line);
-            totalAmount = totalAmount.add(line.subtotal());
-            validateAmount(totalAmount, "订单总金额超出系统支持范围");
+            deductedLines.add(deductStock(selection));
         }
+        BundlePricingService.PricingResult pricing = priceOrder(deductedLines);
+        BigDecimal totalAmount = pricing.regularAmount();
+        BigDecimal discountAmount = pricing.discountAmount();
+        validateAmount(totalAmount, "订单总金额超出系统支持范围");
 
         BookOrder order = BookOrder.builder()
                 .orderNo(generateOrderNo())
                 .user(userRepository.getReferenceById(userId))
                 .status(OrderStatus.PENDING_PAYMENT)
                 .totalAmount(totalAmount)
-                .discountAmount(BigDecimal.ZERO)
+                .discountAmount(discountAmount)
                 .shippingFee(BigDecimal.ZERO)
                 .payableAmount(calculatePayableAmount(
-                        totalAmount, BigDecimal.ZERO, BigDecimal.ZERO))
+                        totalAmount, discountAmount, BigDecimal.ZERO))
                 .expireTime(createTime.plusMinutes(PAYMENT_TIMEOUT_MINUTES))
                 .receiverName(address.receiverName())
                 .receiverPhone(address.receiverPhone())
@@ -136,7 +160,8 @@ public class OrderService {
                 .build();
         order = bookOrderRepository.saveAndFlush(order);
 
-        List<OrderItem> orderItems = saveOrderItems(order, deductedLines);
+        List<OrderItem> orderItems = saveOrderItems(order, deductedLines, pricing.bookDiscountAllocations());
+        saveBundleSnapshots(order, orderItems, pricing);
         saveInventoryLogs(order, orderItems, deductedLines);
 
         // 只删除本次结算时读取到的购物车项，避免误删并发请求中新选中的商品。
@@ -205,6 +230,11 @@ public class OrderService {
         return cancelledCount;
     }
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     @Transactional
     public PaymentVo payOrder(Long userId, Long orderId, PayOrderDTO dto) {
         if (dto == null || dto.getPaymentMethod() == null) {
@@ -295,22 +325,37 @@ public class OrderService {
         return queryService().listUserOrders(userId, status, page, size);
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public OrderVo getUserOrder(Long userId, Long orderId) {
         return queryService().getUserOrder(userId, orderId);
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<OrderVo> listAdminOrders(
             String orderNo, Long userId, OrderStatus status, int page, int size) {
         return queryService().listAdminOrders(orderNo, userId, status, page, size);
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public OrderVo getAdminOrder(Long orderId) {
         return queryService().getAdminOrder(orderId);
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private OrderQueryService queryService() {
         // Spring wiring supplies the extracted collaborator; this fallback keeps legacy
         // field-injection unit tests focused on the facade behavior.
@@ -339,7 +384,8 @@ public class OrderService {
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "库存扣减失败");
         }
 
-        BigDecimal subtotal = snapshot.getSalePrice()
+        BigDecimal currentSalePrice = bookPromotionService.effectivePrice(snapshot.getId(), snapshot.getSalePrice());
+        BigDecimal subtotal = currentSalePrice
                 .multiply(BigDecimal.valueOf(selection.quantity()));
         validateAmount(subtotal, "图书《" + snapshot.getTitle() + "》小计超出系统支持范围");
 
@@ -347,7 +393,7 @@ public class OrderService {
                 snapshot.getId(),
                 snapshot.getTitle(),
                 snapshot.getIsbn(),
-                snapshot.getSalePrice(),
+                currentSalePrice,
                 selection.quantity(),
                 subtotal,
                 beforeStock,
@@ -358,21 +404,79 @@ public class OrderService {
     }
 
     /** 保存下单时的图书、价格和数量快照。 */
-    private List<OrderItem> saveOrderItems(BookOrder order, List<DeductedLine> lines) {
+    private List<OrderItem> saveOrderItems(BookOrder order, List<DeductedLine> lines,
+                                          Map<Long, BigDecimal> allocations) {
         List<OrderItem> items = lines.stream()
-                .map(line -> OrderItem.builder()
-                        .order(order)
-                        .book(bookRepository.getReferenceById(line.bookId()))
-                        .bookTitle(line.bookTitle())
-                        .isbn(line.isbn())
-                        .unitPrice(line.unitPrice())
-                        .quantity(line.quantity())
-                        .preSale(line.preSale())
-                        .preSaleReleaseTime(line.preSaleReleaseTime())
-                        .subtotal(line.subtotal())
-                        .build())
+                .map(line -> {
+                    BigDecimal discount = money(allocations.getOrDefault(line.bookId(), BigDecimal.ZERO));
+                    return OrderItem.builder()
+                            .order(order)
+                            .book(bookRepository.getReferenceById(line.bookId()))
+                            .bookTitle(line.bookTitle())
+                            .isbn(line.isbn())
+                            .unitPrice(line.unitPrice())
+                            .quantity(line.quantity())
+                            .preSale(line.preSale())
+                            .preSaleReleaseTime(line.preSaleReleaseTime())
+                            .subtotal(line.subtotal())
+                            .discountAmount(discount)
+                            .paidSubtotal(money(line.subtotal().subtract(discount)))
+                            .build();
+                })
                 .toList();
         return orderItemRepository.saveAllAndFlush(items);
+    }
+
+    private BundlePricingService.PricingResult priceOrder(List<DeductedLine> lines) {
+        Map<Long, BundlePricingService.CartBook> cartBooks = new HashMap<>();
+        for (DeductedLine line : lines) {
+            cartBooks.put(line.bookId(), new BundlePricingService.CartBook(
+                    line.bookId(), line.quantity(), line.unitPrice()));
+        }
+        if (bookBundleService == null || bundlePricingService == null) {
+            BigDecimal regular = money(lines.stream().map(DeductedLine::subtotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
+            return new BundlePricingService.PricingResult(regular, BigDecimal.ZERO, regular,
+                    List.of(), List.of(), Map.of(), List.of());
+        }
+        List<BundlePricingService.BundleCandidate> candidates = bookBundleService.listCustomerBundles().stream()
+                .map(bookBundleService::toCandidate).toList();
+        return bundlePricingService.price(cartBooks, candidates);
+    }
+
+    private void saveBundleSnapshots(BookOrder order, List<OrderItem> orderItems,
+                                     BundlePricingService.PricingResult pricing) {
+        if (orderBundleApplicationRepository == null || orderBundleApplicationItemRepository == null
+                || pricing.selectedBundleIds().isEmpty()) return;
+        Map<Long, OrderItem> itemByBookId = new HashMap<>();
+        for (OrderItem item : orderItems) itemByBookId.put(item.getBook().getId(), item);
+        for (Long bundleId : pricing.selectedBundleIds()) {
+            BundlePricingService.BundleCandidate candidate = pricing.eligibleBundles().stream()
+                    .filter(bundle -> bundle.id().equals(bundleId)).findFirst().orElse(null);
+            if (candidate == null) continue;
+            BigDecimal regular = candidate.members().stream()
+                    .map(BundlePricingService.BundleMember::salePrice)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            OrderBundleApplication application = orderBundleApplicationRepository.saveAndFlush(
+                    OrderBundleApplication.builder().order(order).bundleId(candidate.id()).bundleName(candidate.name())
+                            .bundlePrice(money(candidate.bundlePrice())).regularAmount(money(regular))
+                            .discountAmount(money(candidate.savings())).build());
+            List<OrderBundleApplicationItem> snapshotItems = candidate.members().stream()
+                    .map(member -> {
+                        OrderItem item = itemByBookId.get(member.bookId());
+                        return OrderBundleApplicationItem.builder().application(application).orderItem(item)
+                                .bookId(member.bookId()).bookTitle(member.title()).isbn(item.getIsbn())
+                                .salePrice(money(member.salePrice()))
+                                .allocatedDiscount(money(pricing.bookDiscountAllocations()
+                                        .getOrDefault(member.bookId(), BigDecimal.ZERO)))
+                                .quantity(1).build();
+                    }).toList();
+            orderBundleApplicationItemRepository.saveAllAndFlush(snapshotItems);
+        }
+    }
+
+    private static BigDecimal money(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /** 为每一条订单明细写入对应的出库流水。 */
@@ -438,6 +542,9 @@ public class OrderService {
                 address.getReceiverName(), address.getReceiverPhone(), receiverAddress);
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private User getActiveUser(Long userId) {
         if (userId == null) {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
@@ -447,12 +554,18 @@ public class OrderService {
                         HttpStatus.NOT_FOUND, "用户不存在或已被禁用"));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private UserAddress getOwnedAddress(Long userId, Long addressId) {
         return userAddressRepository.findByIdAndUser_Id(addressId, userId)
                 .orElseThrow(() -> new BusinessException(
                         HttpStatus.NOT_FOUND, "收货地址不存在"));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private BookOrder getOwnedOrder(Long userId, Long orderId) {
         if (orderId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "订单不能为空");
@@ -462,6 +575,9 @@ public class OrderService {
                         HttpStatus.NOT_FOUND, "订单不存在"));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private BookOrder getOrder(Long orderId) {
         if (orderId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "订单不能为空");
@@ -471,6 +587,9 @@ public class OrderService {
                         HttpStatus.NOT_FOUND, "订单不存在"));
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private void requireOrderStatus(
             BookOrder order, OrderStatus expectedStatus, String message) {
         if (order.getStatus() != expectedStatus) {
@@ -478,6 +597,9 @@ public class OrderService {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private void throwCurrentOrderState(
             Long userId, Long orderId, String fallbackMessage) {
         BookOrder current = getOwnedOrder(userId, orderId);
@@ -485,12 +607,18 @@ public class OrderService {
                 fallbackMessage + "，当前状态为" + current.getStatus());
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private void throwCurrentOrderState(Long orderId, String fallbackMessage) {
         BookOrder current = getOrder(orderId);
         throw new BusinessException(HttpStatus.CONFLICT,
                 fallbackMessage + "，当前状态为" + current.getStatus());
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private BigDecimal calculatePayableAmount(
             BigDecimal total, BigDecimal discount, BigDecimal shipping) {
         if (total == null || discount == null || shipping == null
@@ -505,6 +633,9 @@ public class OrderService {
         return payable;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateAmount(BigDecimal amount, String message) {
         if (amount == null || amount.signum() < 0
                 || amount.compareTo(MAX_DATABASE_AMOUNT) > 0) {
@@ -548,6 +679,9 @@ public class OrderService {
         throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "支付流水号生成失败");
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private OrderVo loadOrderVo(Long orderId) {
         BookOrder order = getOrder(orderId);
         List<OrderItem> items = orderItemRepository.findByOrder_IdOrderByIdAsc(orderId);
@@ -555,6 +689,9 @@ public class OrderService {
     }
 
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private OrderVo toOrderVo(BookOrder order, List<OrderItem> items) {
         OrderVo vo = new OrderVo();
         vo.setId(order.getId());
@@ -576,8 +713,43 @@ public class OrderService {
         vo.setCompletedTime(order.getCompletedTime());
         vo.setCancelledTime(order.getCancelledTime());
         vo.setItems(items.stream().map(this::toOrderItemVo).toList());
+        vo.setBundles(
+                orderBundleApplicationRepository == null || orderBundleApplicationItemRepository == null
+                        ? List.of()
+                        : orderBundleApplicationRepository.findByOrder_IdOrderByBundleIdAsc(order.getId()).stream()
+                                .map(this::toBundleVo)
+                                .toList()
+        );
         return vo;
     }
+
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
+     private OrderBundleApplicationVo toBundleVo(OrderBundleApplication application) {
+         OrderBundleApplicationVo vo = new OrderBundleApplicationVo();
+         vo.setId(application.getId());
+         vo.setBundleId(application.getBundleId());
+         vo.setBundleName(application.getBundleName());
+         vo.setBundlePrice(application.getBundlePrice());
+         vo.setRegularAmount(application.getRegularAmount());
+         vo.setDiscountAmount(application.getDiscountAmount());
+         vo.setItems(orderBundleApplicationItemRepository.findByApplication_IdOrderByIdAsc(application.getId()).stream()
+                 .map(this::toBundleItemVo).toList());
+         return vo;
+     }
+
+     private OrderBundleApplicationItemVo toBundleItemVo(OrderBundleApplicationItem item) {
+         OrderBundleApplicationItemVo vo = new OrderBundleApplicationItemVo();
+         vo.setOrderItemId(item.getOrderItem().getId());
+         vo.setBookId(item.getBookId());
+         vo.setBookTitle(item.getBookTitle());
+         vo.setIsbn(item.getIsbn());
+         vo.setSalePrice(item.getSalePrice());
+         vo.setAllocatedDiscount(item.getAllocatedDiscount());
+         vo.setQuantity(item.getQuantity());
+         return vo;
+     }
 
     private PaymentVo toPaymentVo(Payment payment) {
         PaymentVo vo = new PaymentVo();
@@ -593,6 +765,9 @@ public class OrderService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private OrderItemVo toOrderItemVo(OrderItem item) {
         OrderItemVo vo = new OrderItemVo();
         vo.setId(item.getId());
@@ -602,16 +777,27 @@ public class OrderService {
         vo.setUnitPrice(item.getUnitPrice());
         vo.setQuantity(item.getQuantity());
         vo.setSubtotal(item.getSubtotal());
+        vo.setDiscountAmount(item.getDiscountAmount());
+        vo.setPaidSubtotal(item.getPaidSubtotal());
         return vo;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private record CartSelection(Long cartItemId, Long bookId, Integer quantity) {
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private record DeductedLine(
             Long bookId,
             String bookTitle,
@@ -625,9 +811,15 @@ public class OrderService {
             LocalDateTime preSaleReleaseTime) {
     }
 
+    /**
+     * 创建并保存当前业务数据。
+     */
     private record AddressSnapshot(
             String receiverName, String receiverPhone, String receiverAddress) {
     }
 
 
 }
+
+
+

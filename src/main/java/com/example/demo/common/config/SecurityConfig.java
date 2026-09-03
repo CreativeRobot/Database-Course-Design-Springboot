@@ -11,6 +11,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Spring Security 配置类，负责认证、授权和安全过滤链配置。
+ */
 @Configuration
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -23,11 +26,19 @@ public class SecurityConfig {
         this.securityErrorResponseWriter = securityErrorResponseWriter;
     }
 
+    // ==================== 公共方法 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -52,7 +63,8 @@ public class SecurityConfig {
                                 "/api/categories/**",
                                 "/api/authors/**",
                                 "/api/publishers/**",
-                                "/api/recommendations/home")
+                                "/api/recommendations/home",
+                                "/api/promotions/**")
                         .permitAll()
                         .requestMatchers("/uploads/**", "/error").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

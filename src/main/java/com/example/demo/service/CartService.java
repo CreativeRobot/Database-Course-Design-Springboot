@@ -5,6 +5,7 @@ import com.example.demo.dto.AddCartItemDTO;
 import com.example.demo.dto.UpdateCartItemDTO;
 import com.example.demo.entity.Book;
 import com.example.demo.entity.BookStatus;
+import com.example.demo.entity.BookBundle;
 import com.example.demo.entity.CartItem;
 import com.example.demo.entity.User;
 import com.example.demo.repository.BookRepository;
@@ -19,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
 
 /**
  * 当前登录用户的购物车业务。
@@ -37,6 +41,15 @@ public class CartService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private BookBundleService bookBundleService;
+
+    @Autowired
+    private BundlePricingService bundlePricingService;
+
+    @Autowired
+    private BookPromotionService bookPromotionService;
 
     // ==================== 购物车查询 ====================
 
@@ -91,6 +104,32 @@ public class CartService {
             item.setSelected(true);
         }
         return toItemVo(cartItemRepository.save(item));
+    }
+
+    /** 将组合包内每本图书各加入一份；组合优惠在购物车/下单时统一匹配。 */
+    @Transactional
+    public CartVo addBundle(Long userId, BookBundle bundle) {
+        getActiveUser(userId);
+        if (bundle == null || !bookBundleService.isCustomerVisible(bundle)) {
+            throw new BusinessException(HttpStatus.CONFLICT, "组合包当前不可购买");
+        }
+        for (var relation : bookBundleService.items(bundle.getId())) {
+            Book book = getPurchasableBook(relation.getBook().getId());
+            CartItem item = cartItemRepository.findByUser_IdAndBook_Id(userId, book.getId()).orElse(null);
+            int current = item == null || item.getQuantity() == null ? 0 : item.getQuantity();
+            if (current >= MAX_ITEM_QUANTITY || current + 1 > book.getStock()) {
+                throw new BusinessException(HttpStatus.CONFLICT, "图书《" + book.getTitle() + "》库存不足");
+            }
+            if (item == null) {
+                item = CartItem.builder().user(userRepository.getReferenceById(userId)).book(book)
+                        .quantity(1).selected(true).build();
+            } else {
+                item.setQuantity(current + 1);
+                item.setSelected(true);
+            }
+            cartItemRepository.save(item);
+        }
+        return getCart(userId);
     }
 
     /**
@@ -209,7 +248,33 @@ public class CartService {
         vo.setTotalQuantity(totalQuantity);
         vo.setSelectedQuantity(selectedQuantity);
         vo.setSelectedAmount(selectedAmount);
+        vo.setRegularAmount(selectedAmount);
+        BundlePricingService.PricingResult pricing = priceSelectedItems(items);
+        vo.setBundleDiscountAmount(pricing.discountAmount());
+        vo.setPayableAmount(pricing.payableAmount());
+        Set<Long> appliedIds = Set.copyOf(pricing.selectedBundleIds());
+        vo.setEligibleBundles(pricing.eligibleBundles().stream()
+                .map(candidate -> bookBundleService.toCartVo(candidate, appliedIds.contains(candidate.id())))
+                .toList());
+        vo.setAppliedBundles(pricing.selectedBundleIds().stream()
+                .map(id -> pricing.eligibleBundles().stream()
+                        .filter(bundle -> bundle.id().equals(id)).findFirst().orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .map(candidate -> bookBundleService.toCartVo(candidate, true)).toList());
         return vo;
+    }
+
+    private BundlePricingService.PricingResult priceSelectedItems(List<CartItem> items) {
+        Map<Long, BundlePricingService.CartBook> cartBooks = new HashMap<>();
+        for (CartItem item : items) {
+            if (!Boolean.TRUE.equals(item.getSelected()) || item.getBook() == null || item.getQuantity() == null) continue;
+            Book book = item.getBook();
+            cartBooks.put(book.getId(), new BundlePricingService.CartBook(
+                    book.getId(), item.getQuantity(), bookPromotionService.effectivePrice(book)));
+        }
+        List<BundlePricingService.BundleCandidate> candidates = bookBundleService.listCustomerBundles().stream()
+                .map(bookBundleService::toCandidate).toList();
+        return bundlePricingService.price(cartBooks, candidates);
     }
 
     /** 转换单条购物车数据，并标记当前是否仍可购买。 */
@@ -221,7 +286,7 @@ public class CartService {
         vo.setIsbn(book.getIsbn());
         vo.setTitle(book.getTitle());
         vo.setCoverUrl(book.getCoverUrl());
-        vo.setSalePrice(book.getSalePrice());
+        vo.setSalePrice(bookPromotionService.effectivePrice(book));
         vo.setStock(book.getStock());
         vo.setBookStatus(book.getStatus());
         vo.setPreSale(BookPreSalePolicy.isActive(book.getPreSale(), book.getPreSaleReleaseTime(), java.time.LocalDateTime.now()));
@@ -231,7 +296,7 @@ public class CartService {
         vo.setAvailable(book.getStatus() == BookStatus.ON_SALE
                 && book.getStock() != null
                 && book.getStock() >= item.getQuantity());
-        vo.setSubtotal(book.getSalePrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+        vo.setSubtotal(bookPromotionService.effectivePrice(book).multiply(BigDecimal.valueOf(item.getQuantity())));
         vo.setCreateTime(item.getCreateTime());
         vo.setUpdateTime(item.getUpdateTime());
         return vo;

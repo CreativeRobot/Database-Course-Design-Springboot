@@ -18,6 +18,8 @@ public class BookVo {
     private String publisherName;
     private BigDecimal originalPrice;
     private BigDecimal salePrice;
+    private BigDecimal baseSalePrice;
+    private BookPromotionSummaryVo promotion;
     private Integer stock;
     private Boolean preSale;
     private LocalDateTime preSaleReleaseTime;
