@@ -112,6 +112,21 @@ class JwtAuthenticationFilterTests {
         assertEquals(200, response.getStatus());
     }
     @Test
+    void protectsMyPostsGetRequestWithoutToken() throws ServletException, IOException {
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+                mock(JwtUtils.class), mock(UserRepository.class), newWriter());
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "GET", "/api/community/posts/mine");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
     void allowsAnonymousAvatarGetRequestWithoutToken() throws ServletException, IOException {
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
                 mock(JwtUtils.class), mock(UserRepository.class), newWriter());

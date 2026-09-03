@@ -126,7 +126,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 || isPathOrChild(path, "/api/categories")
                 || isPathOrChild(path, "/api/authors")
                 || isPathOrChild(path, "/api/publishers")
-                || isPathOrChild(path, "/api/community/posts")
+                || (isPathOrChild(path, "/api/community/posts")
+                    && !"/api/community/posts/mine".equals(path))
                 || isPathOrChild(path, "/uploads")
                 || "/api/recommendations/home".equals(path);
     }

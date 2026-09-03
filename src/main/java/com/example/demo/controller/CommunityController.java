@@ -33,6 +33,14 @@ public class CommunityController {
         return Result.success(communityService.listPosts(keyword, bookId, page, size));
     }
 
+    @GetMapping("/api/community/posts/mine")
+    public Result<PageVo<CommunityPostVo>> listMyPosts(
+            @RequestAttribute("userId") Long userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return Result.success(communityService.listMyPosts(userId, page, size));
+    }
+
     @GetMapping("/api/community/posts/{postId}")
     public Result<CommunityPostVo> getPost(@PathVariable Long postId) {
         return Result.success(communityService.getPost(postId));

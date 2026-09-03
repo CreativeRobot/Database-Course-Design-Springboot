@@ -59,6 +59,12 @@ public class CommunityService {
     }
 
     @Transactional(readOnly = true)
+    public PageVo<CommunityPostVo> listMyPosts(Long userId, int page, int size) {
+        getActiveUser(userId);
+        return PageVo.of(postRepository.findByUserId(userId, pageRequest(page, size)).map(this::toPostVo));
+    }
+
+    @Transactional(readOnly = true)
     public CommunityPostVo getPost(Long postId) {
         return toPostVo(getVisiblePost(postId));
     }

@@ -99,7 +99,8 @@ public class JwtInterceptor implements HandlerInterceptor {
                 || isPathOrChild(path, "/api/categories")
                 || isPathOrChild(path, "/api/authors")
                 || isPathOrChild(path, "/api/publishers")
-                || isPathOrChild(path, "/api/community/posts");
+                || (isPathOrChild(path, "/api/community/posts")
+                    && !"/api/community/posts/mine".equals(path));
     }
 
     /**

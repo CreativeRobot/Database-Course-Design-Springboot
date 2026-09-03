@@ -155,7 +155,7 @@ public class RefundService {
      */
     @Transactional(readOnly = true)
     public RefundRequestVo getAdmin(Long id) {
-        return toVo(refundRequestRepository.findByIdForUpdate(id)
+        return toVo(refundRequestRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "售后申请不存在")));
     }
 

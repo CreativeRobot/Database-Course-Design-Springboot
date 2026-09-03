@@ -95,6 +95,19 @@ INSERT IGNORE INTO category (name, parent_id, sort_order, status, create_time, u
 SELECT 'Popular Science', id, 1, 1, '2026-08-01 09:37:00', '2026-08-01 09:37:00'
 FROM category WHERE name = 'Science';
 
+-- Additional second-level categories for browsing and community-filter testing.
+INSERT IGNORE INTO category (name, parent_id, sort_order, status, create_time, update_time)
+SELECT 'Web Development', id, 4, 1, '2026-09-03 10:00:00', '2026-09-03 10:00:00'
+FROM category WHERE name = 'Computer Science';
+
+INSERT IGNORE INTO category (name, parent_id, sort_order, status, create_time, update_time)
+SELECT 'Essays', id, 2, 1, '2026-09-03 10:01:00', '2026-09-03 10:01:00'
+FROM category WHERE name = 'Literature';
+
+INSERT IGNORE INTO category (name, parent_id, sort_order, status, create_time, update_time)
+SELECT 'Astronomy', id, 2, 1, '2026-09-03 10:02:00', '2026-09-03 10:02:00'
+FROM category WHERE name = 'Science';
+
 INSERT IGNORE INTO book
     (isbn, title, publisher_id, original_price, sale_price, stock, publish_date,
      edition, pages, description, cover_url, status, create_time, update_time)

@@ -62,6 +62,8 @@ public class SecurityConfig {
                                 "/api/auth/security-questions",
                                 "/api/auth/forgot-password")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/community/posts/mine")
+                        .authenticated()
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/books/**",

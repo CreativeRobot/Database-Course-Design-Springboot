@@ -17,6 +17,7 @@ import com.example.demo.repository.InventoryLogRepository;
 import com.example.demo.repository.OrderItemRepository;
 import com.example.demo.repository.PaymentRepository;
 import com.example.demo.repository.RefundRequestRepository;
+import com.example.demo.vo.RefundRequestVo;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -47,6 +48,24 @@ class RefundServiceTests {
 
     @InjectMocks private RefundService refundService;
 
+    @Test
+    void adminDetailUsesReadOnlyLookupAndReturnsApplicationReason() {
+        BookOrder order = paidOrder();
+        Book book = Book.builder().id(9L).build();
+        OrderItem item = OrderItem.builder().id(11L).order(order).book(book)
+                .bookTitle("Database Systems").quantity(2).refundedQuantity(0).build();
+        RefundRequest request = RefundRequest.builder().id(21L).refundNo("REF001")
+                .order(order).orderItem(item).user(order.getUser())
+                .type(RefundType.RETURN_REFUND).status(RefundStatus.PENDING)
+                .quantity(1).amount(new BigDecimal("12.50")).reason("图书破损").build();
+        when(refundRequestRepository.findById(21L)).thenReturn(Optional.of(request));
+
+        RefundRequestVo detail = refundService.getAdmin(21L);
+
+        assertEquals("图书破损", detail.getReason());
+        verify(refundRequestRepository).findById(21L);
+        verify(refundRequestRepository, never()).findByIdForUpdate(21L);
+    }
     @Test
     void calculatesRefundAmountOnServerAndCreatesPendingRequest() {
         BookOrder order = paidOrder();

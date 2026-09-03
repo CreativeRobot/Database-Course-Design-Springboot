@@ -11,7 +11,7 @@ import lombok.Data;
  */
 @Data
 public class CreateRefundRequestDTO {
-    @NotNull private Long orderId;
+    private Long orderId;
     @NotNull private Long orderItemId;
     @NotNull private RefundType type;
     @NotNull @Positive private Integer quantity;
