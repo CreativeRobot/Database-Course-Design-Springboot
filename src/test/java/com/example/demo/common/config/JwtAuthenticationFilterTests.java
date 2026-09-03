@@ -98,6 +98,20 @@ class JwtAuthenticationFilterTests {
     }
 
     @Test
+    void allowsAnonymousCommunityGetRequestWithoutToken() throws ServletException, IOException {
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+                mock(JwtUtils.class), mock(UserRepository.class), newWriter());
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "GET", "/api/community/posts/12/comments");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        assertEquals(200, response.getStatus());
+    }
+    @Test
     void allowsAnonymousAvatarGetRequestWithoutToken() throws ServletException, IOException {
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
                 mock(JwtUtils.class), mock(UserRepository.class), newWriter());

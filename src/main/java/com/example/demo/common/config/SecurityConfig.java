@@ -69,7 +69,8 @@ public class SecurityConfig {
                                 "/api/authors/**",
                                 "/api/publishers/**",
                                 "/api/recommendations/home",
-                                "/api/promotions/**")
+                                "/api/promotions/**",
+                                "/api/community/posts/**")
                         .permitAll()
                         .requestMatchers("/uploads/**", "/error").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

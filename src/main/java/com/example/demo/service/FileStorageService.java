@@ -54,6 +54,7 @@ public class FileStorageService {
         try {
             Files.createDirectories(uploadRoot.resolve("covers"));
             Files.createDirectories(uploadRoot.resolve("avatars"));
+            Files.createDirectories(uploadRoot.resolve("posts"));
         } catch (IOException exception) {
             throw new IllegalStateException("无法创建上传目录", exception);
         }
@@ -83,6 +84,13 @@ public class FileStorageService {
     /**
      * 执行当前模块的业务处理逻辑。
      */
+    public UploadFileVo storePostImage(Long userId, MultipartFile file) {
+        if (userId == null || userId <= 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "用户信息不合法");
+        }
+        return storeImage(file, uploadRoot.resolve("posts").resolve(userId.toString()), "/posts/" + userId);
+    }
+
     private UploadFileVo storeImage(MultipartFile file, Path directory, String publicPath) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "上传文件不能为空");
