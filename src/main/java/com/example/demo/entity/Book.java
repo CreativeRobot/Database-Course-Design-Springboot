@@ -23,6 +23,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * Book 数据库实体，映射业务领域中的持久化数据。
+ */
 @Entity
 @Table(
         name = "book",

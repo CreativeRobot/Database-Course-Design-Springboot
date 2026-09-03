@@ -33,6 +33,11 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping
     public Result<PageVo<OrderVo>> listOrders(
             @RequestAttribute("userId") Long userId,
@@ -42,6 +47,9 @@ public class OrderController {
         return Result.success(orderService.listUserOrders(userId, status, page, size));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping("/{orderId}")
     public Result<OrderVo> getOrder(
             @RequestAttribute("userId") Long userId,

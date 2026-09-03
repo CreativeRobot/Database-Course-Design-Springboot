@@ -12,6 +12,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * BookCategory 数据库实体，映射业务领域中的持久化数据。
+ */
 @Entity
 @Table(name = "book_category")
 @Data

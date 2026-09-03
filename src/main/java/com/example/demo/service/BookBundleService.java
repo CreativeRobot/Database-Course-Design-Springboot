@@ -58,7 +58,10 @@ public class BookBundleService {
         validatePrice(dto.getBundlePrice(), books);
         BookBundle bundle = BookBundle.builder()
                 .name(dto.getName().trim()).description(trimToNull(dto.getDescription()))
-                .bundlePrice(money(dto.getBundlePrice())).status(BookBundleStatus.ACTIVE).version(0L).build();
+                .bundlePrice(money(dto.getBundlePrice())).status(BookBundleStatus.ACTIVE)
+                .homePinned(Boolean.TRUE.equals(dto.getHomePinned()))
+                .homePriority(homePriority(dto.getHomePriority()))
+                .version(0L).build();
         bundle = bundleRepository.save(bundle);
         saveItems(bundle, books);
         return toAdminVo(bundle);
@@ -81,6 +84,8 @@ public class BookBundleService {
         bundle.setName(dto.getName().trim());
         bundle.setDescription(trimToNull(dto.getDescription()));
         bundle.setBundlePrice(money(dto.getBundlePrice()));
+        if (dto.getHomePinned() != null) bundle.setHomePinned(dto.getHomePinned());
+        if (dto.getHomePriority() != null) bundle.setHomePriority(dto.getHomePriority());
         itemRepository.deleteByBundle_Id(id);
         saveItems(bundle, books);
         return toAdminVo(bundleRepository.save(bundle));
@@ -117,9 +122,9 @@ public class BookBundleService {
     /** 返回当前仍可参与用户端匹配的组合包。 */
     @Transactional(readOnly = true)
     public List<BookBundle> listCustomerBundles() {
-        return bundleRepository.findByStatusOrderByIdAsc(BookBundleStatus.ACTIVE).stream()
+        return BundleHomeOrdering.sortBundles(bundleRepository.findByStatusOrderByIdAsc(BookBundleStatus.ACTIVE).stream()
                 .filter(this::isCustomerVisible)
-                .toList();
+                .toList());
     }
 
     public BookBundle getBundle(Long id) {
@@ -183,7 +188,8 @@ public class BookBundleService {
         else if (books.stream().anyMatch(book -> book.getStock() == null || book.getStock() < 1)) reason = "存在缺货图书";
         BookBundleVo vo = new BookBundleVo(); vo.setId(bundle.getId()); vo.setName(bundle.getName()); vo.setDescription(bundle.getDescription());
         vo.setBundlePrice(money(bundle.getBundlePrice())); vo.setRegularAmount(regular); vo.setSavings(regular.subtract(bundle.getBundlePrice()).setScale(2, RoundingMode.HALF_UP));
-        vo.setStatus(bundle.getStatus()); vo.setVersion(bundle.getVersion()); vo.setPriceValid(priceValid); vo.setPurchasable(isCustomerVisible(bundle)); vo.setUnavailableReason(reason);
+        vo.setStatus(bundle.getStatus()); vo.setHomePinned(bundle.getHomePinned()); vo.setHomePriority(bundle.getHomePriority());
+        vo.setVersion(bundle.getVersion()); vo.setPriceValid(priceValid); vo.setPurchasable(isCustomerVisible(bundle)); vo.setUnavailableReason(reason);
         vo.setItems(members.stream().map(this::toItemVo).toList()); vo.setCreateTime(bundle.getCreateTime()); vo.setUpdateTime(bundle.getUpdateTime()); return vo;
     }
 
@@ -223,5 +229,6 @@ public class BookBundleService {
     }
 
     private static BigDecimal money(BigDecimal value) { return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP); }
+    private static int homePriority(Integer value) { return value == null ? 0 : value; }
     private static String trimToNull(String value) { return StringUtils.hasText(value) ? value.trim() : null; }
 }

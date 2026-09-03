@@ -16,6 +16,8 @@ public class BookBundleVo {
     private BigDecimal regularAmount;
     private BigDecimal savings;
     private BookBundleStatus status;
+    private Boolean homePinned;
+    private Integer homePriority;
     private Long version;
     private Boolean priceValid;
     private Boolean purchasable;

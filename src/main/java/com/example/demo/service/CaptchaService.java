@@ -25,6 +25,9 @@ import java.util.Base64;
 import java.util.Locale;
 import java.util.UUID;
 
+/**
+ * CaptchaService 业务服务，封装相关领域的业务规则和数据访问流程。
+ */
 @Service
 public class CaptchaService {
 
@@ -43,6 +46,11 @@ public class CaptchaService {
         this.cacheManager = cacheManager;
     }
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public CaptchaVo issue() {
         String code = randomCode();
         String captchaId = UUID.randomUUID().toString();
@@ -50,6 +58,9 @@ public class CaptchaService {
         return new CaptchaVo(captchaId, renderBase64(code), EXPIRES_IN_SECONDS);
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     public void verifyAndConsume(String captchaId, String captchaCode) {
         if (!StringUtils.hasText(captchaId)
                 || captchaId.length() > 64) {
@@ -73,6 +84,9 @@ public class CaptchaService {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @SuppressWarnings("unchecked")
     private Cache<String, byte[]> cache() {
         org.springframework.cache.Cache springCache = cacheManager.getCache(CACHE_NAME);
@@ -82,6 +96,9 @@ public class CaptchaService {
         return (Cache<String, byte[]>) springCache.getNativeCache();
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String randomCode() {
         StringBuilder code = new StringBuilder(CODE_LENGTH);
         for (int index = 0; index < CODE_LENGTH; index++) {
@@ -90,6 +107,9 @@ public class CaptchaService {
         return code.toString();
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String renderBase64(String code) {
         BufferedImage image = new BufferedImage(
                 IMAGE_WIDTH,
@@ -154,10 +174,16 @@ public class CaptchaService {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String normalize(String code) {
         return code.trim().toUpperCase(Locale.ROOT);
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private byte[] sha256(String value) {
         try {
             return MessageDigest.getInstance("SHA-256")
@@ -167,6 +193,9 @@ public class CaptchaService {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private BusinessException invalidCaptcha() {
         return new BusinessException(HttpStatus.BAD_REQUEST, ERROR_MESSAGE);
     }

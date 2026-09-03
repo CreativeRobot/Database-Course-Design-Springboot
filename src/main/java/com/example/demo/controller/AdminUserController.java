@@ -25,6 +25,11 @@ public class AdminUserController {
     @Autowired
     private AdminUserService adminUserService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping
     public Result<PageVo<AdminUserVo>> listUsers(
             @RequestParam(required = false) String keyword,
@@ -35,11 +40,17 @@ public class AdminUserController {
         return Result.success(adminUserService.listUsers(keyword, status, role, page, size));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping("/{userId}")
     public Result<AdminUserVo> getUser(@PathVariable Long userId) {
         return Result.success(adminUserService.getUser(userId));
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     @PutMapping("/{userId}/status")
     public Result<AdminUserVo> changeStatus(
             @RequestAttribute("userId") Long operatorId,

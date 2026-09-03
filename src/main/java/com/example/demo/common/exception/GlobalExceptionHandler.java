@@ -13,10 +13,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+/**
+ * GlobalExceptionHandler 公共组件，提供后端各模块共享的基础能力。
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // ==================== 公共方法 ====================
+
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Result<Void>> handleBusinessException(BusinessException exception) {
         HttpStatus status = exception.getStatus();
@@ -24,6 +32,9 @@ public class GlobalExceptionHandler {
                 .body(Result.error(status.value(), exception.getMessage()));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Result<Void>> handleValidationException(
             MethodArgumentNotValidException exception) {
@@ -37,12 +48,18 @@ public class GlobalExceptionHandler {
                 .body(Result.error(HttpStatus.BAD_REQUEST.value(), message));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Result<Void>> handleUnreadableMessage() {
         return ResponseEntity.badRequest()
                 .body(Result.error(HttpStatus.BAD_REQUEST.value(), "请求体格式不正确"));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     @ExceptionHandler(MissingServletRequestPartException.class)
     public ResponseEntity<Result<Void>> handleMissingMultipartPart(
             MissingServletRequestPartException exception) {
@@ -53,6 +70,9 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Result<Void>> handleMaxUploadSizeExceeded() {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
@@ -62,6 +82,9 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Result<Void>> handleDataIntegrityViolation(
             DataIntegrityViolationException exception) {
@@ -70,6 +93,9 @@ public class GlobalExceptionHandler {
                 .body(Result.error(HttpStatus.CONFLICT.value(), "数据已存在或违反数据库约束"));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Result<Void>> handleUnknownException(Exception exception) {
         log.error("Unhandled exception", exception);

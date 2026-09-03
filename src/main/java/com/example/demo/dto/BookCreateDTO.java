@@ -14,6 +14,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * BookCreateDTO 请求数据传输对象，用于接收和校验接口输入参数。
+ */
 @Data
 public class BookCreateDTO {
 

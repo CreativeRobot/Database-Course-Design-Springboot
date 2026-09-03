@@ -10,6 +10,9 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * SecurityErrorResponseWriter 公共组件，提供后端各模块共享的基础能力。
+ */
 @Component
 public class SecurityErrorResponseWriter {
     private final ObjectMapper objectMapper;
@@ -18,6 +21,11 @@ public class SecurityErrorResponseWriter {
         this.objectMapper = objectMapper;
     }
 
+    // ==================== 公共方法 ====================
+
+    /**
+     * 将安全错误信息写入 HTTP 响应。
+     */
     public void write(HttpServletResponse response, HttpStatus status, String message)
             throws IOException {
         response.setStatus(status.value());

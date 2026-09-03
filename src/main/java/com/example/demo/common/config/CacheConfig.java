@@ -8,9 +8,17 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
+/**
+ * CacheConfig 公共组件，提供后端各模块共享的基础能力。
+ */
 @Configuration
 public class CacheConfig {
 
+    // ==================== 公共方法 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();

@@ -1,5 +1,8 @@
 package com.example.demo.entity;
 
+/**
+ * InventoryChangeType 数据库实体，映射业务领域中的持久化数据。
+ */
 public enum InventoryChangeType {
     PURCHASE_IN,//供应商供货导致库存增加
     ORDER_OUT,//用户下单导致库存减少

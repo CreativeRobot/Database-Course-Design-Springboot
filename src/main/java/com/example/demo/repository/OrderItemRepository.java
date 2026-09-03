@@ -10,6 +10,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * OrderItemRepository 数据访问接口，负责实体持久化及相关查询。
+ */
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from OrderItem i join fetch i.order join fetch i.book where i.id = :itemId")

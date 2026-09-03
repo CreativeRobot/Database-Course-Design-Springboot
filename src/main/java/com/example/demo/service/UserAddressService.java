@@ -198,6 +198,11 @@ public class UserAddressService {
         return vo;
     }
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }

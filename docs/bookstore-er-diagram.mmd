@@ -3,13 +3,14 @@ erDiagram
         BIGINT id PK "用户主键"
         VARCHAR username UK "登录用户名"
         VARCHAR password "加密密码"
-        INT status "账户状态"
-        DATETIME create_time "创建时间"
-        DATETIME update_time "更新时间"
-        VARCHAR role "ADMIN或CUSTOMER"
+        INT status "0禁用/1启用"
+        ENUM role "ADMIN/CUSTOMER"
         VARCHAR nickname "昵称"
         VARCHAR email "邮箱"
         VARCHAR phone "手机号"
+        VARCHAR avatar_url "头像地址"
+        DATETIME create_time "创建时间"
+        DATETIME update_time "更新时间"
     }
 
     USER_ADDRESS {
@@ -22,7 +23,8 @@ erDiagram
         VARCHAR district "区县"
         VARCHAR detail_address "详细地址"
         VARCHAR postal_code "邮政编码"
-        BOOLEAN default_address "是否默认地址"
+        BOOLEAN default_address "是否默认"
+        BIGINT default_user_id UK "生成列；默认地址时等于user_id"
         DATETIME create_time "创建时间"
         DATETIME update_time "更新时间"
     }
@@ -31,8 +33,8 @@ erDiagram
         BIGINT id PK "出版社主键"
         VARCHAR name UK "出版社名称"
         VARCHAR phone "联系电话"
-        VARCHAR address "出版社地址"
-        VARCHAR introduction "出版社简介"
+        VARCHAR address "地址"
+        VARCHAR introduction "简介"
         DATETIME create_time "创建时间"
         DATETIME update_time "更新时间"
     }
@@ -49,9 +51,9 @@ erDiagram
     CATEGORY {
         BIGINT id PK "分类主键"
         VARCHAR name UK "分类名称"
-        BIGINT parent_id FK "父分类，可为空"
+        BIGINT parent_id FK "父分类，可空"
         INT sort_order "同级排序"
-        INT status "分类状态"
+        INT status "0禁用/1启用"
         DATETIME create_time "创建时间"
         DATETIME update_time "更新时间"
     }
@@ -64,25 +66,26 @@ erDiagram
         DECIMAL original_price "原价"
         DECIMAL sale_price "售价"
         INT stock "当前库存"
+        BIGINT sales_count "销量"
         DATE publish_date "出版日期"
         VARCHAR edition "版本"
         INT pages "页数"
         TEXT description "图书简介"
         VARCHAR cover_url "封面地址"
-        VARCHAR status "ON_SALE或OFF_SALE"
+        ENUM status "ON_SALE/OFF_SALE"
         DATETIME create_time "创建时间"
         DATETIME update_time "更新时间"
     }
 
     BOOK_AUTHOR {
-        BIGINT book_id PK, FK "图书主键组成部分"
-        BIGINT author_id PK, FK "作者主键组成部分"
+        BIGINT book_id PK, FK "图书主键组成"
+        BIGINT author_id PK, FK "作者主键组成"
         INT author_order "作者顺序"
     }
 
     BOOK_CATEGORY {
-        BIGINT book_id PK, FK "图书主键组成部分"
-        BIGINT category_id PK, FK "分类主键组成部分"
+        BIGINT book_id PK, FK "图书主键组成"
+        BIGINT category_id PK, FK "分类主键组成"
     }
 
     CART_ITEM {
@@ -99,15 +102,17 @@ erDiagram
         BIGINT id PK "订单主键"
         VARCHAR order_no UK "订单编号"
         BIGINT user_id FK "下单用户"
-        VARCHAR status "订单状态"
-        DECIMAL total_amount "商品总金额"
+        ENUM status "订单状态"
+        DECIMAL total_amount "商品总额"
         DECIMAL discount_amount "优惠金额"
         DECIMAL shipping_fee "运费"
         DECIMAL payable_amount "应付金额"
+        DECIMAL refunded_amount "已批准退款额"
         VARCHAR receiver_name "收货人快照"
         VARCHAR receiver_phone "手机号快照"
-        VARCHAR receiver_address "收货地址快照"
+        VARCHAR receiver_address "地址快照"
         VARCHAR remark "订单备注"
+        DATETIME expire_time "待支付过期时间"
         DATETIME create_time "下单时间"
         DATETIME update_time "更新时间"
         DATETIME paid_time "支付时间"
@@ -120,10 +125,11 @@ erDiagram
         BIGINT id PK "订单明细主键"
         BIGINT order_id FK "所属订单"
         BIGINT book_id FK "关联图书"
-        VARCHAR book_title "下单时书名快照"
-        VARCHAR isbn "下单时ISBN快照"
-        DECIMAL unit_price "下单时单价"
+        VARCHAR book_title "下单书名快照"
+        VARCHAR isbn "下单ISBN快照"
+        DECIMAL unit_price "成交单价快照"
         INT quantity "购买数量"
+        INT refunded_quantity "已批准退款数量"
         DECIMAL subtotal "明细小计"
     }
 
@@ -131,9 +137,9 @@ erDiagram
         BIGINT id PK "支付记录主键"
         VARCHAR payment_no UK "支付流水号"
         BIGINT order_id FK "关联订单"
-        VARCHAR payment_method "支付方式"
+        ENUM payment_method "支付方式"
         DECIMAL amount "支付金额"
-        VARCHAR status "支付状态"
+        ENUM status "PENDING/SUCCESS/FAILED/CLOSED/REFUNDED"
         DATETIME paid_time "支付完成时间"
         DATETIME create_time "创建时间"
         DATETIME update_time "更新时间"
@@ -142,48 +148,65 @@ erDiagram
     BOOK_REVIEW {
         BIGINT id PK "评价主键"
         BIGINT user_id FK "评价用户"
-        BIGINT book_id FK "评价图书"
-        BIGINT order_item_id FK, UK "对应订单明细"
-        INT rating "评分1至5"
+        BIGINT book_id FK "被评价图书"
+        BIGINT order_item_id FK, UK "订单明细；每项一评"
+        INT rating "1至5星"
         VARCHAR content "评价内容"
-        INT status "评价状态"
+        INT status "0屏蔽/1展示"
         DATETIME create_time "创建时间"
         DATETIME update_time "更新时间"
     }
 
     INVENTORY_LOG {
         BIGINT id PK "库存流水主键"
-        BIGINT book_id FK "发生变动的图书"
-        INT change_quantity "库存变化量"
-        INT before_stock "变化前库存"
-        INT after_stock "变化后库存"
-        VARCHAR change_type "变动类型"
-        BIGINT order_id FK "关联订单，可为空"
-        VARCHAR remark "变动备注"
+        BIGINT book_id FK "图书"
+        INT change_quantity "增减数量，非0"
+        INT before_stock "变更前库存"
+        INT after_stock "变更后库存"
+        ENUM change_type "PURCHASE_IN/ORDER_OUT/ORDER_CANCEL_RETURN/REFUND_RETURN/MANUAL_ADJUSTMENT"
+        BIGINT order_id FK "关联订单，可空"
+        VARCHAR remark "备注"
         DATETIME create_time "创建时间"
     }
 
-    USERS ||--o{ USER_ADDRESS : "拥有"
-    USERS ||--o{ CART_ITEM : "加入购物车"
-    USERS ||--o{ BOOK_ORDER : "提交订单"
-    USERS ||--o{ BOOK_REVIEW : "发表评价"
+    REFUND_REQUEST {
+        BIGINT id PK "退款申请主键"
+        VARCHAR refund_no UK "退款单号"
+        BIGINT order_id FK "关联订单"
+        BIGINT order_item_id FK "关联订单明细"
+        BIGINT user_id FK "申请用户"
+        ENUM type "REFUND_ONLY/RETURN_REFUND"
+        ENUM status "PENDING/APPROVED/REJECTED"
+        INT quantity "申请数量"
+        DECIMAL amount "服务端核算退款金额"
+        VARCHAR reason "申请原因"
+        VARCHAR review_remark "审核备注"
+        BIGINT reviewer_id FK "审核管理员，可空"
+        DATETIME reviewed_time "审核时间"
+        DATETIME create_time "创建时间"
+        DATETIME update_time "更新时间"
+    }
 
-    PUBLISHER ||--o{ BOOK : "出版"
-    CATEGORY o|--o{ CATEGORY : "父子分类"
+    USERS ||--o{ USER_ADDRESS : owns
+    USERS ||--o{ CART_ITEM : owns
+    USERS ||--o{ BOOK_ORDER : places
+    USERS ||--o{ BOOK_REVIEW : writes
+    USERS ||--o{ REFUND_REQUEST : applies
+    USERS o|--o{ REFUND_REQUEST : reviews
 
-    BOOK ||--o{ BOOK_AUTHOR : "关联作者"
-    AUTHOR ||--o{ BOOK_AUTHOR : "参与创作"
-
-    BOOK ||--o{ BOOK_CATEGORY : "关联分类"
-    CATEGORY ||--o{ BOOK_CATEGORY : "包含图书"
-
-    BOOK ||--o{ CART_ITEM : "加入购物车"
-    BOOK_ORDER ||--|{ ORDER_ITEM : "包含"
-    BOOK ||--o{ ORDER_ITEM : "形成订单明细"
-
-    BOOK_ORDER ||--o{ PAYMENT : "产生支付记录"
-    ORDER_ITEM ||--o| BOOK_REVIEW : "对应评价"
-    BOOK ||--o{ BOOK_REVIEW : "获得评价"
-
-    BOOK ||--o{ INVENTORY_LOG : "产生库存流水"
-    BOOK_ORDER o|--o{ INVENTORY_LOG : "关联库存变动"
+    PUBLISHER ||--o{ BOOK : publishes
+    CATEGORY o|--o{ CATEGORY : parent_of
+    BOOK ||--o{ BOOK_AUTHOR : has
+    AUTHOR ||--o{ BOOK_AUTHOR : participates
+    BOOK ||--o{ BOOK_CATEGORY : has
+    CATEGORY ||--o{ BOOK_CATEGORY : classifies
+    BOOK ||--o{ CART_ITEM : added_to
+    BOOK_ORDER ||--|{ ORDER_ITEM : contains
+    BOOK ||--o{ ORDER_ITEM : referenced_by
+    BOOK_ORDER ||--o{ PAYMENT : has
+    BOOK_ORDER ||--o{ INVENTORY_LOG : causes
+    BOOK ||--o{ INVENTORY_LOG : changes
+    BOOK ||--o{ BOOK_REVIEW : receives
+    ORDER_ITEM ||--o| BOOK_REVIEW : receives
+    BOOK_ORDER ||--o{ REFUND_REQUEST : has
+    ORDER_ITEM ||--o{ REFUND_REQUEST : has

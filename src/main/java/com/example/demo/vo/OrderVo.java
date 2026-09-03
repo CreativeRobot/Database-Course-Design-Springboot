@@ -7,6 +7,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * OrderVo 响应视图对象，用于封装返回给客户端的数据。
+ */
 @Data
 public class OrderVo {
     private Long id;
@@ -28,4 +31,5 @@ public class OrderVo {
     private LocalDateTime completedTime;
     private LocalDateTime cancelledTime;
     private List<OrderItemVo> items;
+    private List<OrderBundleApplicationVo> bundles;
 }

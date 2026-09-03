@@ -27,6 +27,11 @@ public class AdminAuthorController {
     @Autowired
     private AuthorService authorService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping
     public Result<PageVo<AuthorVo>> listAuthors(
             @RequestParam(required = false) String keyword,
@@ -35,17 +40,26 @@ public class AdminAuthorController {
         return Result.success(authorService.listAuthors(keyword, page, size));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping("/{authorId}")
     public Result<AuthorVo> getAuthor(@PathVariable Long authorId) {
         return Result.success(authorService.getAuthor(authorId));
     }
 
+    /**
+     * 创建并保存当前业务数据。
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<AuthorVo> createAuthor(@Valid @RequestBody SaveAuthorDTO dto) {
         return Result.success(authorService.createAuthor(dto));
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     @PutMapping("/{authorId}")
     public Result<AuthorVo> updateAuthor(
             @PathVariable Long authorId,
@@ -53,6 +67,9 @@ public class AdminAuthorController {
         return Result.success(authorService.updateAuthor(authorId, dto));
     }
 
+    /**
+     * 删除或清理当前业务数据。
+     */
     @DeleteMapping("/{authorId}")
     public Result<Void> deleteAuthor(@PathVariable Long authorId) {
         authorService.deleteAuthor(authorId);

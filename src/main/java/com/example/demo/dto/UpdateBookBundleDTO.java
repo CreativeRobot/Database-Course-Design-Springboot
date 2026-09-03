@@ -1,6 +1,8 @@
 package com.example.demo.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -27,4 +29,10 @@ public class UpdateBookBundleDTO {
 
     @NotNull(message = "版本号不能为空")
     private Long version;
+
+    private Boolean homePinned;
+
+    @Min(value = 0, message = "首页排序值不能小于0")
+    @Max(value = 10000, message = "首页排序值不能超过10000")
+    private Integer homePriority;
 }

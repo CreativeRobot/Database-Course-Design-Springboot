@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+/**
+ * BookCategoryId 数据库实体，映射业务领域中的持久化数据。
+ */
 @Embeddable
 @Data
 @NoArgsConstructor

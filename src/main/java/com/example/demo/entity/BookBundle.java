@@ -45,6 +45,14 @@ public class BookBundle {
     @Column(nullable = false, length = 20)
     private BookBundleStatus status = BookBundleStatus.ACTIVE;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean homePinned = false;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer homePriority = 0;
+
     @Version
     @Column(nullable = false)
     private Long version;

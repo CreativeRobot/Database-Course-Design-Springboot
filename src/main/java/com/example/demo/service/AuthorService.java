@@ -29,6 +29,11 @@ public class AuthorService {
     @Autowired
     private BookAuthorRepository bookAuthorRepository;
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<AuthorVo> listAuthors(String keyword, int page, int size) {
         Pageable pageable = buildPageable(page, size);
@@ -38,11 +43,17 @@ public class AuthorService {
         return PageVo.of(authors.map(this::toVo));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public AuthorVo getAuthor(Long authorId) {
         return toVo(getAuthorOrThrow(authorId));
     }
 
+    /**
+     * 创建并保存当前业务数据。
+     */
     @Transactional
     public AuthorVo createAuthor(SaveAuthorDTO dto) {
         validateRequest(dto);
@@ -54,6 +65,9 @@ public class AuthorService {
         return toVo(authorRepository.save(author));
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     @Transactional
     public AuthorVo updateAuthor(Long authorId, SaveAuthorDTO dto) {
         validateRequest(dto);
@@ -64,6 +78,9 @@ public class AuthorService {
         return toVo(authorRepository.save(author));
     }
 
+    /**
+     * 删除或清理当前业务数据。
+     */
     @Transactional
     public void deleteAuthor(Long authorId) {
         Author author = getAuthorOrThrow(authorId);
@@ -73,6 +90,9 @@ public class AuthorService {
         authorRepository.delete(author);
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private Author getAuthorOrThrow(Long authorId) {
         if (authorId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "作者不能为空");
@@ -81,12 +101,18 @@ public class AuthorService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "作者不存在"));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateRequest(SaveAuthorDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getName())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "作者姓名不能为空");
         }
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private Pageable buildPageable(int page, int size) {
         if (page < 1 || size < 1 || size > MAX_PAGE_SIZE) {
             throw new BusinessException(HttpStatus.BAD_REQUEST,
@@ -96,6 +122,9 @@ public class AuthorService {
                 Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id")));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private AuthorVo toVo(Author author) {
         AuthorVo vo = new AuthorVo();
         vo.setId(author.getId());
@@ -107,6 +136,9 @@ public class AuthorService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }

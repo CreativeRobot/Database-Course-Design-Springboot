@@ -18,6 +18,9 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 
+/**
+ * FileStorageService 业务服务，封装相关领域的业务规则和数据访问流程。
+ */
 @Service
 public class FileStorageService {
 
@@ -41,6 +44,11 @@ public class FileStorageService {
         this.maxImageSize = maxImageSize;
     }
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @PostConstruct
     public void initialize() {
         try {
@@ -51,10 +59,16 @@ public class FileStorageService {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public UploadFileVo storeCover(MultipartFile file) {
         return storeImage(file, uploadRoot.resolve("covers"), "/covers");
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public UploadFileVo storeAvatar(Long userId, MultipartFile file) {
         if (userId == null || userId <= 0) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "用户信息不合法");
@@ -66,6 +80,9 @@ public class FileStorageService {
         );
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private UploadFileVo storeImage(MultipartFile file, Path directory, String publicPath) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "上传文件不能为空");
@@ -110,10 +127,16 @@ public class FileStorageService {
         );
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     public Path getUploadRoot() {
         return uploadRoot;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String normalizeUrlPrefix(String value) {
         String prefix = value == null || value.isBlank() ? "/uploads" : value.trim();
         if (!prefix.startsWith("/")) {

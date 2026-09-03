@@ -2,6 +2,14 @@ package com.example.demo.common.utils;
 
 import java.util.Locale;
 
+    // ==================== 公共方法 ====================
+
+/**
+ * UsernameUtils 公共组件，提供后端各模块共享的基础能力。
+ */
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
 public final class UsernameUtils {
     private UsernameUtils() {
     }

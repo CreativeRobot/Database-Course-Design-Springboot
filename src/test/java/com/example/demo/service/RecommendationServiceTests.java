@@ -263,4 +263,22 @@ class RecommendationServiceTests {
         verify(orderItemRepository, times(times)).findCompletedByUserId(
                 7L, com.example.demo.entity.OrderStatus.COMPLETED);
     }
+    @Test
+    void returnsRequestedRecommendationPageAndHasMoreFlag() {
+        when(orderItemRepository.findCompletedByUserId(any(), any())).thenReturn(List.of());
+        when(bookRepository.findByStatusAndStockGreaterThan(BookStatus.ON_SALE, 0))
+                .thenReturn(List.of(book(1L, 30L), book(2L, 20L), book(3L, 10L)));
+        when(bookReviewRepository.findByUser_IdAndStatus(7L, 1)).thenReturn(List.of());
+
+        RecommendationHomeVo result = recommendationService.getHomeRecommendations(7L, 2, 2);
+
+        assertEquals(2, result.getPage());
+        assertEquals(2, result.getSize());
+        assertEquals(1, result.getBooks().size());
+        assertEquals(3L, result.getBooks().getFirst().getId());
+        assertEquals(false, result.getHasMore());
+    }
 }
+
+
+

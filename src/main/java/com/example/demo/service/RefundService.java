@@ -20,6 +20,9 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * 退款业务服务，负责退款申请、审核和状态更新。
+ */
 @Service
 public class RefundService {
     private static final int MAX_PAGE_SIZE = 100;
@@ -30,6 +33,11 @@ public class RefundService {
     @Autowired private PaymentRepository paymentRepository;
     @Autowired private InventoryLogRepository inventoryLogRepository;
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 创建并保存当前业务数据。
+     */
     @Transactional
     public RefundRequest createRequest(Long userId, CreateRefundRequestDTO dto) {
         BookOrder order = bookOrderRepository.findById(dto.getOrderId())
@@ -51,8 +59,18 @@ public class RefundService {
         if (!StringUtils.hasText(dto.getReason())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "售后原因不能为空");
         }
-        BigDecimal amount = item.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantity()))
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal paidSubtotal = item.getPaidSubtotal();
+        BigDecimal discountAmount = defaultMoney(item.getDiscountAmount());
+        BigDecimal amount;
+        if (paidSubtotal != null && (paidSubtotal.signum() > 0 || discountAmount.signum() > 0)) {
+            amount = paidSubtotal.multiply(BigDecimal.valueOf(dto.getQuantity()))
+                    .divide(BigDecimal.valueOf(item.getQuantity()), 8, RoundingMode.HALF_UP)
+                    .setScale(2, RoundingMode.HALF_UP);
+        } else {
+            // 兼容 V6 以前创建的历史订单：其 paid_subtotal 尚未保存。
+            amount = item.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantity()))
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
         RefundRequest request = RefundRequest.builder()
                 .refundNo(generateRefundNo())
                 .order(order).orderItem(item).user(order.getUser())
@@ -61,6 +79,9 @@ public class RefundService {
         return refundRequestRepository.save(request);
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @Transactional
     public RefundRequest review(Long refundId, Long adminId, ReviewRefundDTO dto) {
         RefundRequest request = refundRequestRepository.findByIdForUpdate(refundId)
@@ -120,32 +141,65 @@ public class RefundService {
         return saved;
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<RefundRequestVo> listAdmin(RefundStatus status, RefundType type, int page, int size) {
         PageRequest pageable = pageRequest(page, size);
         return PageVo.of(refundRequestRepository.searchForAdmin(status, type, pageable).map(this::toVo));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public RefundRequestVo getAdmin(Long id) {
         return toVo(refundRequestRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "售后申请不存在")));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<RefundRequestVo> listUser(Long userId, int page, int size) {
         PageRequest pageable = pageRequest(page, size);
         return PageVo.of(refundRequestRepository.findByUser_IdOrderByCreateTimeDesc(userId, pageable).map(this::toVo));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public RefundRequestVo getUser(Long userId, Long id) {
         return toVo(refundRequestRepository.findByIdAndUser_Id(id, userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "售后申请不存在")));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     public RefundRequestVo toVoForController(RefundRequest r) { return toVo(r); }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private RefundRequestVo toVo(RefundRequest r) {
         RefundRequestVo vo = new RefundRequestVo();
         vo.setId(r.getId()); vo.setRefundNo(r.getRefundNo());

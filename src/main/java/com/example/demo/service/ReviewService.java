@@ -147,11 +147,19 @@ public class ReviewService {
         ).map(this::toVo));
     }
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public ReviewVo getAdminReview(Long reviewId) {
         return toVo(getReviewOrThrow(reviewId));
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     @Transactional
     public ReviewVo changeReviewStatus(Long reviewId, Integer status) {
         validateStatus(status);
@@ -175,6 +183,9 @@ public class ReviewService {
         return PageRequest.of(page - 1, size);
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private Pageable buildAdminPageable(int page, int size) {
         if (page < 1) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "页码必须从1开始");
@@ -190,6 +201,9 @@ public class ReviewService {
         );
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateCreateRequest(CreateReviewDTO dto) {
         if (dto == null || dto.getOrderItemId() == null || dto.getRating() == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "订单明细和评分不能为空");
@@ -197,6 +211,9 @@ public class ReviewService {
         validateRating(dto.getRating());
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateUpdateRequest(UpdateReviewDTO dto) {
         if (dto == null || dto.getRating() == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "评分不能为空");
@@ -204,24 +221,36 @@ public class ReviewService {
         validateRating(dto.getRating());
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateRating(Integer rating) {
         if (rating < 1 || rating > 5) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "评分必须在1到5之间");
         }
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateStatus(Integer status) {
         if (status == null || (status != 0 && status != 1)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "评价状态只能为0或1");
         }
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validatePositive(Long value, String fieldName) {
         if (value != null && value <= 0) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, fieldName + "必须为正数");
         }
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private BookReview getReviewOrThrow(Long reviewId) {
         if (reviewId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "评价不能为空");
@@ -230,6 +259,9 @@ public class ReviewService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "评价不存在"));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private User getActiveUser(Long userId) {
         if (userId == null) {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
@@ -239,6 +271,9 @@ public class ReviewService {
                         HttpStatus.NOT_FOUND, "用户不存在或已被禁用"));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private ReviewVo toVo(BookReview review) {
         ReviewVo vo = new ReviewVo();
         vo.setId(review.getId());
@@ -256,6 +291,9 @@ public class ReviewService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }

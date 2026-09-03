@@ -32,6 +32,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * 管理端统计业务服务，负责销售、库存和图书数据统计。
+ */
 @Service
 public class AdminStatisticsService {
 
@@ -49,6 +52,11 @@ public class AdminStatisticsService {
     @Autowired
     private BookRepository bookRepository;
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public AdminStatisticsVo getOverview(int months, int top, int lowStockThreshold) {
         validateRange(months, 1, MAX_MONTHS, "统计月份数");
@@ -70,11 +78,17 @@ public class AdminStatisticsService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private Long sumSoldQuantity() {
         Long quantity = orderItemRepository.sumCompletedSoldQuantity();
         return quantity == null ? 0L : quantity;
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private List<MonthlySalesVo> loadMonthlySales(int months) {
         LocalDateTime startTime = LocalDateTime.now()
                 .with(TemporalAdjusters.firstDayOfMonth())
@@ -88,6 +102,9 @@ public class AdminStatisticsService {
                 .toList();
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private List<DailySalesVo> loadDailySales() {
         LocalDate startDate = LocalDate.now().minusDays(DAILY_TREND_DAYS - 1L);
         Map<String, DailySalesProjection> salesByDate =
@@ -101,6 +118,12 @@ public class AdminStatisticsService {
                 .toList();
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private DailySalesVo toDailySalesVo(
             LocalDate saleDate,
             DailySalesProjection projection
@@ -121,12 +144,18 @@ public class AdminStatisticsService {
                 .toList();
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private List<CategorySalesVo> loadCategorySales() {
         return orderItemRepository.findCategorySales().stream()
                 .map(this::toCategorySalesVo)
                 .toList();
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private List<LowStockBookVo> loadLowStockBooks(int threshold) {
         return bookRepository.findByStockLessThanEqualAndStatusOrderByStockAsc(
                         threshold, BookStatus.ON_SALE)
@@ -135,6 +164,9 @@ public class AdminStatisticsService {
                 .toList();
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private MonthlySalesVo toMonthlySalesVo(MonthlySalesProjection projection) {
         MonthlySalesVo vo = new MonthlySalesVo();
         vo.setSaleMonth(projection.getSaleMonth());
@@ -144,6 +176,9 @@ public class AdminStatisticsService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private TopBookSalesVo toTopBookSalesVo(TopBookSalesProjection projection) {
         TopBookSalesVo vo = new TopBookSalesVo();
         vo.setBookId(projection.getBookId());
@@ -153,6 +188,9 @@ public class AdminStatisticsService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private CategorySalesVo toCategorySalesVo(CategorySalesProjection projection) {
         CategorySalesVo vo = new CategorySalesVo();
         vo.setCategoryId(projection.getCategoryId());
@@ -162,6 +200,9 @@ public class AdminStatisticsService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private LowStockBookVo toLowStockBookVo(Book book) {
         LowStockBookVo vo = new LowStockBookVo();
         vo.setBookId(book.getId());
@@ -172,6 +213,9 @@ public class AdminStatisticsService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateRange(int value, int min, int max, String fieldName) {
         if (value < min || value > max) {
             throw new BusinessException(
@@ -180,10 +224,16 @@ public class AdminStatisticsService {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private Long defaultLong(Long value) {
         return value == null ? 0L : value;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private BigDecimal defaultAmount(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }

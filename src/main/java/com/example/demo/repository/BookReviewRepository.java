@@ -10,6 +10,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * BookReviewRepository 数据访问接口，负责实体持久化及相关查询。
+ */
 public interface BookReviewRepository extends JpaRepository<BookReview, Long> {
     Page<BookReview> findByBook_IdAndStatusOrderByCreateTimeDesc(
             Long bookId,

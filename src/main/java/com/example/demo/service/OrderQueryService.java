@@ -4,13 +4,20 @@ import com.example.demo.common.exception.BusinessException;
 import com.example.demo.entity.BookOrder;
 import com.example.demo.entity.OrderItem;
 import com.example.demo.entity.OrderStatus;
+import com.example.demo.entity.OrderBundleApplication;
+import com.example.demo.entity.OrderBundleApplicationItem;
 import com.example.demo.entity.User;
 import com.example.demo.repository.BookOrderRepository;
 import com.example.demo.repository.OrderItemRepository;
+import com.example.demo.repository.OrderBundleApplicationRepository;
+import com.example.demo.repository.OrderBundleApplicationItemRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.vo.OrderItemVo;
+import com.example.demo.vo.OrderBundleApplicationVo;
+import com.example.demo.vo.OrderBundleApplicationItemVo;
 import com.example.demo.vo.OrderVo;
 import com.example.demo.vo.PageVo;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,14 +36,32 @@ public class OrderQueryService {
     private final BookOrderRepository bookOrderRepository;
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
+    private final OrderBundleApplicationRepository orderBundleApplicationRepository;
+    private final OrderBundleApplicationItemRepository orderBundleApplicationItemRepository;
 public OrderQueryService(BookOrderRepository bookOrderRepository,
                              OrderItemRepository orderItemRepository,
                              UserRepository userRepository) {
+        this(bookOrderRepository, orderItemRepository, userRepository, null, null);
+    }
+
+    @Autowired
+    public OrderQueryService(BookOrderRepository bookOrderRepository,
+                             OrderItemRepository orderItemRepository,
+                             UserRepository userRepository,
+                             OrderBundleApplicationRepository orderBundleApplicationRepository,
+                             OrderBundleApplicationItemRepository orderBundleApplicationItemRepository) {
         this.bookOrderRepository = bookOrderRepository;
         this.orderItemRepository = orderItemRepository;
         this.userRepository = userRepository;
+        this.orderBundleApplicationRepository = orderBundleApplicationRepository;
+        this.orderBundleApplicationItemRepository = orderBundleApplicationItemRepository;
     }
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<OrderVo> listUserOrders(Long userId, OrderStatus status, int page, int size) {
         getActiveUser(userId);
@@ -48,12 +73,18 @@ public OrderQueryService(BookOrderRepository bookOrderRepository,
         return PageVo.of(orders.map(this::toOrderVoWithItems));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public OrderVo getUserOrder(Long userId, Long orderId) {
         getActiveUser(userId);
         return toOrderVoWithItems(getOwnedOrder(userId, orderId));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<OrderVo> listAdminOrders(
             String orderNo, Long userId, OrderStatus status, int page, int size) {
@@ -67,11 +98,17 @@ public OrderQueryService(BookOrderRepository bookOrderRepository,
         return PageVo.of(orders.map(this::toOrderVoWithItems));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public OrderVo getAdminOrder(Long orderId) {
         return toOrderVoWithItems(getOrder(orderId));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private User getActiveUser(Long userId) {
 if (userId == null) {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "未登录或Token已失效");
@@ -81,6 +118,9 @@ if (userId == null) {
                         HttpStatus.NOT_FOUND, "用户不存在或已被禁用"));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private BookOrder getOwnedOrder(Long userId, Long orderId) {
         if (orderId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "订单不能为空");
@@ -89,6 +129,9 @@ if (userId == null) {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "订单不存在"));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private BookOrder getOrder(Long orderId) {
         if (orderId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "订单不能为空");
@@ -97,10 +140,16 @@ if (userId == null) {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "订单不存在"));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private OrderVo toOrderVoWithItems(BookOrder order) {
         return toOrderVo(order, orderItemRepository.findByOrder_IdOrderByIdAsc(order.getId()));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private Pageable buildOrderPageable(int page, int size) {
         if (page < 1) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "页码必须从 1 开始");
@@ -112,6 +161,9 @@ if (userId == null) {
                 Sort.by(Sort.Order.desc("createTime"), Sort.Order.desc("id")));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private OrderVo toOrderVo(BookOrder order, List<OrderItem> items) {
         OrderVo vo = new OrderVo();
         vo.setId(order.getId());
@@ -133,9 +185,15 @@ if (userId == null) {
         vo.setCompletedTime(order.getCompletedTime());
         vo.setCancelledTime(order.getCancelledTime());
         vo.setItems(items.stream().map(this::toOrderItemVo).toList());
+        vo.setBundles(orderBundleApplicationRepository == null ? List.of() :
+                orderBundleApplicationRepository.findByOrder_IdOrderByBundleIdAsc(order.getId()).stream()
+                        .map(this::toBundleVo).toList());
         return vo;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private OrderItemVo toOrderItemVo(OrderItem item) {
         OrderItemVo vo = new OrderItemVo();
         vo.setId(item.getId());
@@ -145,8 +203,29 @@ if (userId == null) {
         vo.setUnitPrice(item.getUnitPrice());
         vo.setQuantity(item.getQuantity());
         vo.setSubtotal(item.getSubtotal());
+        vo.setDiscountAmount(item.getDiscountAmount());
+        vo.setPaidSubtotal(item.getPaidSubtotal());
         vo.setPreSale(item.getPreSale());
         vo.setPreSaleReleaseTime(item.getPreSaleReleaseTime());
+        return vo;
+    }
+
+    private OrderBundleApplicationVo toBundleVo(OrderBundleApplication application) {
+        OrderBundleApplicationVo vo = new OrderBundleApplicationVo();
+        vo.setId(application.getId()); vo.setBundleId(application.getBundleId());
+        vo.setBundleName(application.getBundleName()); vo.setBundlePrice(application.getBundlePrice());
+        vo.setRegularAmount(application.getRegularAmount()); vo.setDiscountAmount(application.getDiscountAmount());
+        vo.setItems(orderBundleApplicationItemRepository == null ? List.of() :
+                orderBundleApplicationItemRepository.findByApplication_IdOrderByIdAsc(application.getId()).stream()
+                        .map(this::toBundleItemVo).toList());
+        return vo;
+    }
+
+    private OrderBundleApplicationItemVo toBundleItemVo(OrderBundleApplicationItem item) {
+        OrderBundleApplicationItemVo vo = new OrderBundleApplicationItemVo();
+        vo.setOrderItemId(item.getOrderItem().getId()); vo.setBookId(item.getBookId());
+        vo.setBookTitle(item.getBookTitle()); vo.setIsbn(item.getIsbn()); vo.setSalePrice(item.getSalePrice());
+        vo.setAllocatedDiscount(item.getAllocatedDiscount()); vo.setQuantity(item.getQuantity());
         return vo;
     }
 }

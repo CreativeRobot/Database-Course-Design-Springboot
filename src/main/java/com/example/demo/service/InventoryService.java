@@ -35,6 +35,11 @@ public class InventoryService {
     @Autowired
     private InventoryLogRepository inventoryLogRepository;
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @Transactional
     public void returnStockAndWriteLogs(Long orderId, String orderNo) {
         List<OrderStockLine> lines = orderItemRepository
@@ -79,6 +84,9 @@ public class InventoryService {
         inventoryLogRepository.saveAllAndFlush(logs);
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @Transactional
     public void increaseSalesCount(List<OrderItem> items) {
         for (OrderItem item : items) {
@@ -86,13 +94,22 @@ public class InventoryService {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public record StockReservation(
             Long bookId, Integer quantity, Integer beforeStock, Integer afterStock) {
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private record OrderStockLine(Long bookId, Integer quantity) {
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private record ReturnedStock(
             Long bookId, Integer quantity, Integer beforeStock, Integer afterStock) {
     }

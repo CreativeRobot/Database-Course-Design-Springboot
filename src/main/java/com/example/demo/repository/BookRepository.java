@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * BookRepository 数据访问接口，负责实体持久化及相关查询。
+ */
 public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificationExecutor<Book> {
     Optional<Book> findByIsbn(String isbn);
 

@@ -15,6 +15,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import java.io.IOException;
 import java.util.Date;
 
+/**
+ * JWT 拦截器，负责对受保护请求进行登录状态校验。
+ */
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
     @Autowired
@@ -26,10 +29,15 @@ public class JwtInterceptor implements HandlerInterceptor {
     @Autowired
     private SecurityErrorResponseWriter securityErrorResponseWriter;
 
+    // ==================== 公共方法 ====================
+
+    /**
+     * 在控制器执行前进行请求拦截和权限校验。
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod()) || isPublicGetRequest(request)) {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod()) || isPublicAuthRequest(request) || isPublicGetRequest(request)) {
             return true;
         }
 
@@ -72,6 +80,13 @@ public class JwtInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
+    private boolean isPublicAuthRequest(HttpServletRequest request) {
+        return "POST".equalsIgnoreCase(request.getMethod())
+                && "/api/auth/forgot-password".equals(request.getRequestURI());
+    }
     private boolean isPublicGetRequest(HttpServletRequest request) {
         if (!"GET".equalsIgnoreCase(request.getMethod())) {
             return false;
@@ -79,16 +94,23 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         String path = request.getRequestURI();
         return "/api/auth/captcha".equals(path)
+                || "/api/auth/security-questions".equals(path)
                 || isPathOrChild(path, "/api/books")
                 || isPathOrChild(path, "/api/categories")
                 || isPathOrChild(path, "/api/authors")
                 || isPathOrChild(path, "/api/publishers");
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private boolean isPathOrChild(String path, String publicPath) {
         return publicPath.equals(path) || path.startsWith(publicPath + "/");
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private Long parseUserId(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -103,6 +125,9 @@ public class JwtInterceptor implements HandlerInterceptor {
         return null;
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     private boolean reject(HttpServletResponse response, HttpStatus status, String message)
             throws IOException {
         securityErrorResponseWriter.write(response, status, message);

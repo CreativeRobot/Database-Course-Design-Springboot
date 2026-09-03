@@ -27,10 +27,14 @@ import java.util.stream.Collectors;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+/**
+ * 推荐业务服务，负责推荐数据查询、组装和排序。
+ */
 @Service
 public class RecommendationService {
     private static final int ENABLED_REVIEW_STATUS = 1;
     private static final int MAX_LIMIT = 20;
+    private static final int MAX_PAGE = 1_000_000;
     private static final long GUEST_CACHE_USER_ID = 0L;
 
     @Autowired
@@ -50,33 +54,57 @@ public class RecommendationService {
             .expireAfterWrite(java.time.Duration.ofMinutes(15))
             .build();
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public RecommendationHomeVo getHomeRecommendations(Long userId, int limit) {
+        return getHomeRecommendations(userId, limit, 1);
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationHomeVo getHomeRecommendations(Long userId, int limit, int page) {
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "推荐数量必须在1到20之间");
         }
+        if (page < 1 || page > MAX_PAGE) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "推荐页码不合法");
+        }
 
-        CacheKey cacheKey = new CacheKey(userId == null ? GUEST_CACHE_USER_ID : userId, limit);
+        CacheKey cacheKey = new CacheKey(userId == null ? GUEST_CACHE_USER_ID : userId, limit, page);
         RecommendationHomeVo cached = cache.getIfPresent(cacheKey);
         if (cached != null) {
             return cached;
         }
 
-        RecommendationHomeVo response = buildRecommendations(userId, limit);
+        RecommendationHomeVo response = buildRecommendations(userId, limit, page);
         cache.put(cacheKey, response);
         return response;
     }
-
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public void invalidate(Long userId) {
         if (userId != null) {
             cache.asMap().keySet().removeIf(cacheKey -> cacheKey.userId().equals(userId));
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public void invalidateAll() {
         cache.invalidateAll();
     }
 
+            /**
+             * 执行当前模块的业务处理逻辑。
+             */
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public void invalidateAllAfterCommit() {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             invalidateAll();
@@ -90,6 +118,12 @@ public class RecommendationService {
         });
     }
 
+            /**
+             * 执行当前模块的业务处理逻辑。
+             */
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public void invalidateAfterCommit(Long userId) {
         if (userId == null) {
             return;
@@ -106,7 +140,10 @@ public class RecommendationService {
         });
     }
 
-    private RecommendationHomeVo buildRecommendations(Long userId, int limit) {
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
+    private RecommendationHomeVo buildRecommendations(Long userId, int limit, int page) {
         List<OrderItem> purchasedItems = userId == null
                 ? List.of()
                 : orderItemRepository.findCompletedByUserId(userId, OrderStatus.COMPLETED);
@@ -119,7 +156,7 @@ public class RecommendationService {
                 : bookRepository.findByStatusAndStockGreaterThanAndIdNotIn(
                         BookStatus.ON_SALE, 0, purchasedBookIds);
         if (candidates.isEmpty()) {
-            return new RecommendationHomeVo("POPULAR", List.of());
+            return new RecommendationHomeVo("POPULAR", List.of(), page, limit, false);
         }
 
         List<Long> allBookIds = new java.util.ArrayList<>(purchasedBookIds);
@@ -146,14 +183,26 @@ public class RecommendationService {
         boolean personalized = rankerCandidates.stream()
                 .anyMatch(candidate -> candidate.personalScore() > 0);
 
-        List<RecommendationBookVo> books = RecommendationRanker.rank(
-                        rankerCandidates, personalized, limit)
+        List<RecommendationRanker.RankedCandidate> ranked = RecommendationRanker.rank(
+                rankerCandidates, personalized, Integer.MAX_VALUE);
+        long startLong = (long) (page - 1) * limit;
+        int start = startLong >= ranked.size() ? ranked.size() : (int) startLong;
+        int end = Math.min(start + limit, ranked.size());
+        List<RecommendationBookVo> books = ranked.subList(start, end)
                 .stream()
-                .map(ranked -> toVo(booksById.get(ranked.bookId()), ranked.reason()))
+                .map(item -> toVo(booksById.get(item.bookId()), item.reason()))
                 .toList();
-        return new RecommendationHomeVo(personalized ? "PERSONALIZED" : "POPULAR", books);
+        return new RecommendationHomeVo(
+                personalized ? "PERSONALIZED" : "POPULAR",
+                books,
+                page,
+                limit,
+                end < ranked.size());
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private Map<Long, Integer> buildCategoryWeights(
             Long userId, List<OrderItem> purchasedItems, Map<Long, List<BookCategory>> categoriesByBook) {
         Map<Long, Integer> weights = new HashMap<>();
@@ -169,6 +218,9 @@ public class RecommendationService {
         return weights;
     }
 
+    /**
+     * 创建并保存当前业务数据。
+     */
     private void addCategoryWeight(Map<Long, Integer> weights, List<BookCategory> categories, int weight) {
         if (weight <= 0) {
             return;
@@ -178,6 +230,9 @@ public class RecommendationService {
         }
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private Map<Long, Integer> buildCoPurchaseScores(List<Long> purchasedBookIds) {
         if (purchasedBookIds.isEmpty()) {
             return Map.of();
@@ -190,6 +245,9 @@ public class RecommendationService {
         return scores;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private RecommendationRanker.Candidate toCandidate(
             Book book, Map<Long, List<BookCategory>> categoriesByBook,
             Map<Long, Double> averageRatings, Map<Long, Integer> categoryWeights,
@@ -211,6 +269,9 @@ public class RecommendationService {
                 createdOrder);
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private RecommendationBookVo toVo(Book book, String reason) {
         RecommendationBookVo vo = new RecommendationBookVo();
         vo.setId(book.getId());
@@ -227,6 +288,13 @@ public class RecommendationService {
         return vo;
     }
 
-    private record CacheKey(Long userId, int limit) {
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
+    private record CacheKey(Long userId, int limit, int page) {
     }
 }
+
+
+
+

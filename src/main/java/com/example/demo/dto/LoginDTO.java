@@ -4,6 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * LoginDTO 请求数据传输对象，用于接收和校验接口输入参数。
+ */
 @Data
 public class LoginDTO {
     @NotBlank(message = "用户名不能为空")

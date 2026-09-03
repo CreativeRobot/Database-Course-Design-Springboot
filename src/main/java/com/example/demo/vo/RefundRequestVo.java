@@ -1,3 +1,6 @@
+/**
+ * RefundRequestVo 响应视图对象，用于封装返回给客户端的数据。
+ */
 package com.example.demo.vo;
 import com.example.demo.entity.RefundStatus;
 import com.example.demo.entity.RefundType;

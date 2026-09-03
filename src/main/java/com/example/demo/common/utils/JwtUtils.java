@@ -13,6 +13,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * JwtUtils 公共组件，提供后端各模块共享的基础能力。
+ */
 @Component
 public class JwtUtils {
     private final Key secretKey;
@@ -29,6 +32,11 @@ public class JwtUtils {
         this.expirationTime = expirationTime;
     }
 
+    // ==================== 公共方法 ====================
+
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     public String generateToken(Long userId, String username, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -44,6 +52,9 @@ public class JwtUtils {
                 .compact();
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     public Claims parseToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(secretKey)
@@ -52,6 +63,9 @@ public class JwtUtils {
                 .getBody();
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     public boolean isTokenExpired(String token) {
         try {
             Date expiration = parseToken(token).getExpiration();

@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * JWT 认证过滤器，负责从请求中解析令牌并建立当前用户身份。
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtils jwtUtils;
@@ -37,6 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.securityErrorResponseWriter = securityErrorResponseWriter;
     }
 
+    // ==================== 公共方法 ====================
+
+    /**
+     * 处理当前 HTTP 请求，完成身份校验后继续执行过滤器链。
+     */
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -99,17 +107,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private boolean isPublicRequest(HttpServletRequest request) {
         String path = request.getRequestURI();
         if ("/api/auth/login".equals(path)
                 || "/api/auth/register".equals(path)
-                || "/api/auth/captcha".equals(path)) {
+                || "/api/auth/captcha".equals(path)
+                || "/api/auth/forgot-password".equals(path)) {
             return true;
         }
         if (!HttpMethod.GET.matches(request.getMethod())) {
             return false;
         }
-        return isPathOrChild(path, "/api/books")
+        return "/api/auth/security-questions".equals(path)
+                || isPathOrChild(path, "/api/books")
                 || isPathOrChild(path, "/api/categories")
                 || isPathOrChild(path, "/api/authors")
                 || isPathOrChild(path, "/api/publishers")
@@ -117,10 +130,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 || "/api/recommendations/home".equals(path);
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     private boolean isPathOrChild(String path, String publicPath) {
         return publicPath.equals(path) || path.startsWith(publicPath + "/");
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private Long parseUserId(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -135,6 +154,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     private void reject(HttpServletResponse response, HttpStatus status, String message)
             throws IOException {
         securityErrorResponseWriter.write(response, status, message);

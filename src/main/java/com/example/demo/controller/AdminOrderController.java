@@ -24,6 +24,11 @@ public class AdminOrderController {
     @Autowired
     private OrderService orderService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping
     public Result<PageVo<OrderVo>> listOrders(
             @RequestParam(required = false) String orderNo,
@@ -35,6 +40,9 @@ public class AdminOrderController {
                 orderService.listAdminOrders(orderNo, userId, status, page, size));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping("/{orderId}")
     public Result<OrderVo> getOrder(@PathVariable Long orderId) {
         return Result.success(orderService.getAdminOrder(orderId));

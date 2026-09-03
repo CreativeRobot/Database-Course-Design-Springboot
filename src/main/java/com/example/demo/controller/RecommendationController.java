@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * RecommendationController REST 控制器，负责接收请求、调用业务服务并返回统一响应。
+ */
 @RestController
 @RequestMapping("/api/recommendations")
 public class RecommendationController {
@@ -17,10 +20,18 @@ public class RecommendationController {
     @Autowired
     private RecommendationService recommendationService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @GetMapping("/home")
     public Result<RecommendationHomeVo> home(
             @RequestAttribute(value = "userId", required = false) Long userId,
-            @RequestParam(defaultValue = "12") int limit) {
-        return Result.success(recommendationService.getHomeRecommendations(userId, limit));
+            @RequestParam(defaultValue = "12") int limit,
+            @RequestParam(defaultValue = "1") int page) {
+        return Result.success(recommendationService.getHomeRecommendations(userId, limit, page));
     }
 }
+
+

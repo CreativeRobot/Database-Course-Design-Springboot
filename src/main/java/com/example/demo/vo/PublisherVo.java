@@ -4,6 +4,9 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * PublisherVo 响应视图对象，用于封装返回给客户端的数据。
+ */
 @Data
 public class PublisherVo {
     private Long id;

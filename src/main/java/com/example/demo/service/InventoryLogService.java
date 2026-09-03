@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+/**
+ * InventoryLogService 业务服务，封装相关领域的业务规则和数据访问流程。
+ */
 @Service
 public class InventoryLogService {
 
@@ -23,6 +26,11 @@ public class InventoryLogService {
     @Autowired
     private InventoryLogRepository inventoryLogRepository;
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<InventoryLogVo> listLogs(
             Long bookId,
@@ -57,6 +65,9 @@ public class InventoryLogService {
         ).map(this::toVo));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private InventoryLogVo toVo(InventoryLog log) {
         InventoryLogVo vo = new InventoryLogVo();
         vo.setId(log.getId());
@@ -76,6 +87,9 @@ public class InventoryLogService {
         return vo;
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validatePositive(Long value, String fieldName) {
         if (value != null && value <= 0) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, fieldName + "必须为正数");

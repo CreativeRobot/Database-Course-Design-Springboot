@@ -75,6 +75,27 @@ class RefundServiceTests {
     }
 
     @Test
+    void refundAmountUsesActualPaidSubtotalAfterBundleDiscount() {
+        BookOrder order = paidOrder();
+        Book book = Book.builder().id(9L).stock(2).build();
+        OrderItem item = OrderItem.builder().id(11L).order(order).book(book)
+                .unitPrice(new BigDecimal("12.50")).quantity(2)
+                .subtotal(new BigDecimal("25.00")).discountAmount(new BigDecimal("5.00"))
+                .paidSubtotal(new BigDecimal("20.00")).build();
+        when(bookOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(orderItemRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(item));
+        when(refundRequestRepository.sumApprovedOrPendingQuantity(11L)).thenReturn(0);
+        when(refundRequestRepository.save(any(RefundRequest.class))).thenAnswer(i -> i.getArgument(0));
+        CreateRefundRequestDTO dto = new CreateRefundRequestDTO();
+        dto.setOrderId(7L); dto.setOrderItemId(11L); dto.setType(RefundType.REFUND_ONLY);
+        dto.setQuantity(1); dto.setReason("组合包退款");
+
+        RefundRequest result = refundService.createRequest(7L, dto);
+
+        assertEquals(new BigDecimal("10.00"), result.getAmount());
+    }
+
+    @Test
     void approvingReturnRefundAtomicallyRestoresStockAndMarksRequestApproved() {
         BookOrder order = paidOrder();
         Book book = Book.builder().id(9L).stock(2).build();

@@ -5,6 +5,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * UpdateProfileDTO 请求数据传输对象，用于接收和校验接口输入参数。
+ */
 @Data
 public class UpdateProfileDTO {
     @Size(max = 30, message = "昵称不能超过30个字符")

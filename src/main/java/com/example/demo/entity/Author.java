@@ -15,6 +15,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * Author 数据库实体，映射业务领域中的持久化数据。
+ */
 @Entity
 @Table(name = "author")
 @Data

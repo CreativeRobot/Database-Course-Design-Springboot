@@ -7,6 +7,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * RefundRequest 数据库实体，映射业务领域中的持久化数据。
+ */
 @Entity
 @Table(name = "refund_request", indexes = {
         @Index(name = "idx_refund_order", columnList = "order_id"),

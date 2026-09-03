@@ -18,6 +18,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * OrderItem 数据库实体，映射业务领域中的持久化数据。
+ */
 @Entity
 @Table(
         name = "order_item",
@@ -68,5 +71,16 @@ public class OrderItem {
     private LocalDateTime preSaleReleaseTime;//下单时预计发售时间快照
 
     @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal subtotal;//总价
+    private BigDecimal subtotal;//普通售价小计
+
+    @Builder.Default
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;//组合包优惠分摊
+
+    @Builder.Default
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal paidSubtotal = BigDecimal.ZERO;//实际支付小计
 }
+
+
+

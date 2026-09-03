@@ -11,11 +11,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * RefundController REST 控制器，负责接收请求、调用业务服务并返回统一响应。
+ */
 @RestController
 @RequestMapping("/api/orders")
 public class RefundController {
     @Autowired private RefundService refundService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 创建并保存当前业务数据。
+     */
     @PostMapping("/{orderId}/refunds")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<RefundRequestVo> create(
@@ -26,6 +34,9 @@ public class RefundController {
         return Result.success(refundService.toVoForController(refundService.createRequest(userId, dto)));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping("/refunds")
     public Result<PageVo<RefundRequestVo>> list(
             @RequestAttribute("userId") Long userId,
@@ -34,6 +45,9 @@ public class RefundController {
         return Result.success(refundService.listUser(userId, page, size));
     }
 
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @GetMapping("/refunds/{refundId}")
     public Result<RefundRequestVo> detail(
             @RequestAttribute("userId") Long userId,

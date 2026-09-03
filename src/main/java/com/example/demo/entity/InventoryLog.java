@@ -20,6 +20,9 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * InventoryLog 数据库实体，映射业务领域中的持久化数据。
+ */
 @Entity
 @Table(
         name = "inventory_log",

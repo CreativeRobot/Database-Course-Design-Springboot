@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Optional;
 
+/**
+ * BookOrderRepository 数据访问接口，负责实体持久化及相关查询。
+ */
 public interface BookOrderRepository extends JpaRepository<BookOrder, Long> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from BookOrder o where o.id = :orderId")

@@ -10,6 +10,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.nio.charset.StandardCharsets;
 
+    // ==================== 公共方法 ====================
+
+/**
+ * 管理员权限拦截器，负责校验当前请求是否具备管理员身份。
+ */
+    /**
+     * 在控制器执行前进行请求拦截和权限校验。
+     */
 @Component
 public class AdminInterceptor implements HandlerInterceptor {
     @Override

@@ -55,7 +55,12 @@ public class SecurityConfig {
                                         response, HttpStatus.FORBIDDEN, "无权访问")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/captcha")
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/register",
+                                "/api/auth/captcha",
+                                "/api/auth/security-questions",
+                                "/api/auth/forgot-password")
                         .permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,

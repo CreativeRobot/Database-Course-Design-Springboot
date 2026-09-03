@@ -6,6 +6,13 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
+
+/**
+ * RegisterDTO 请求数据传输对象，用于接收和校验接口输入参数。
+ */
 @Data
 public class RegisterDTO {
     @NotBlank(message = "用户名不能为空")
@@ -40,4 +47,9 @@ public class RegisterDTO {
     @NotBlank(message = "验证码不能为空")
     @Size(max = 16, message = "验证码长度不正确")
     private String captchaCode;
+
+    @Valid
+    @NotNull(message = "请设置密保问题")
+    @Size(min = 3, max = 3, message = "请设置三个密保问题")
+    private List<SecurityQuestionAnswerDTO> securityQuestions;
 }

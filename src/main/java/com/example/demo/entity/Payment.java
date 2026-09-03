@@ -22,6 +22,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Payment 数据库实体，映射业务领域中的持久化数据。
+ */
 @Entity
 @Table(
         name = "payment",

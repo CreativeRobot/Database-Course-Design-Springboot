@@ -27,6 +27,11 @@ public class AdminPublisherController {
     @Autowired
     private PublisherService publisherService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping
     public Result<PageVo<PublisherVo>> listPublishers(
             @RequestParam(required = false) String keyword,
@@ -35,11 +40,17 @@ public class AdminPublisherController {
         return Result.success(publisherService.listPublishers(keyword, page, size));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping("/{publisherId}")
     public Result<PublisherVo> getPublisher(@PathVariable Long publisherId) {
         return Result.success(publisherService.getPublisher(publisherId));
     }
 
+    /**
+     * 创建并保存当前业务数据。
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<PublisherVo> createPublisher(
@@ -47,6 +58,9 @@ public class AdminPublisherController {
         return Result.success(publisherService.createPublisher(dto));
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     @PutMapping("/{publisherId}")
     public Result<PublisherVo> updatePublisher(
             @PathVariable Long publisherId,
@@ -54,6 +68,9 @@ public class AdminPublisherController {
         return Result.success(publisherService.updatePublisher(publisherId, dto));
     }
 
+    /**
+     * 删除或清理当前业务数据。
+     */
     @DeleteMapping("/{publisherId}")
     public Result<Void> deletePublisher(@PathVariable Long publisherId) {
         publisherService.deletePublisher(publisherId);

@@ -3,6 +3,9 @@ package com.example.demo.service;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * RecommendationRanker 业务服务，封装相关领域的业务规则和数据访问流程。
+ */
 final class RecommendationRanker {
     private static final String CATEGORY_REASON = "与你喜欢的分类相似";
     private static final String CO_PURCHASE_REASON = "与已购图书常被一起购买";
@@ -11,6 +14,11 @@ final class RecommendationRanker {
     private RecommendationRanker() {
     }
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     static List<RankedCandidate> rank(
             List<Candidate> candidates, boolean personalized, int limit) {
         Comparator<Candidate> comparator = personalized

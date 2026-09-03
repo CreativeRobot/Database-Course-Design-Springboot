@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 
+/**
+ * AdminInventoryLogController REST 控制器，负责接收请求、调用业务服务并返回统一响应。
+ */
 @RestController
 @RequestMapping("/api/admin/inventory-logs")
 public class AdminInventoryLogController {
@@ -21,6 +24,11 @@ public class AdminInventoryLogController {
     @Autowired
     private InventoryLogService inventoryLogService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @GetMapping
     public Result<PageVo<InventoryLogVo>> listLogs(
             @RequestParam(required = false) Long bookId,

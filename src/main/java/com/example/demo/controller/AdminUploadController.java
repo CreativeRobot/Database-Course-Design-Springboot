@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * AdminUploadController REST 控制器，负责接收请求、调用业务服务并返回统一响应。
+ */
 @RestController
 @RequestMapping("/api/admin/uploads")
 public class AdminUploadController {
@@ -20,6 +23,11 @@ public class AdminUploadController {
     @Autowired
     private FileStorageService fileStorageService;
 
+    // ==================== 接口定义 ====================
+
+    /**
+     * 执行当前模块的业务处理逻辑。
+     */
     @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public Result<UploadFileVo> uploadImage(

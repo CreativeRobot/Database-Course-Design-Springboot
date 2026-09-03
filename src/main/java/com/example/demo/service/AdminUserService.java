@@ -27,6 +27,11 @@ public class AdminUserService {
     @Autowired
     private UserRepository userRepository;
 
+    // ==================== 业务方法 ====================
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public PageVo<AdminUserVo> listUsers(
             String keyword, Integer status, Role role, int page, int size) {
@@ -42,11 +47,17 @@ public class AdminUserService {
         return PageVo.of(users.map(this::toVo));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public AdminUserVo getUser(Long userId) {
         return toVo(getUserOrThrow(userId));
     }
 
+    /**
+     * 校验请求参数并更新当前业务状态或数据。
+     */
     @Transactional
     public AdminUserVo changeStatus(Long operatorId, Long userId, Integer status) {
         validateStatus(status);
@@ -69,6 +80,9 @@ public class AdminUserService {
         return toVo(userRepository.save(user));
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private User getUserOrThrow(Long userId) {
         if (userId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "用户不能为空");
@@ -77,12 +91,18 @@ public class AdminUserService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "用户不存在"));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateStatus(Integer status) {
         if (status != null && status != ACTIVE && status != INACTIVE) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "用户状态只能为0或1");
         }
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validatePage(int page, int size) {
         if (page < 1 || size < 1 || size > MAX_PAGE_SIZE) {
             throw new BusinessException(HttpStatus.BAD_REQUEST,
@@ -90,6 +110,9 @@ public class AdminUserService {
         }
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private AdminUserVo toVo(User user) {
         AdminUserVo vo = new AdminUserVo();
         vo.setId(user.getId());

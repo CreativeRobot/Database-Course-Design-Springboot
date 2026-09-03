@@ -98,4 +98,22 @@ class CategoryHierarchyServiceTests {
                 .status(1)
                 .build();
     }
+    @Test
+    void featuredCategoriesPreferRootsWithHigherSales() {
+        Category literature = category(1L, "文学", null);
+        Category computer = category(2L, "计算机", null);
+        com.example.demo.entity.Book popular = com.example.demo.entity.Book.builder()
+                .id(10L).title("热门").status(com.example.demo.entity.BookStatus.ON_SALE)
+                .salesCount(99L).build();
+        com.example.demo.entity.BookCategory relation = com.example.demo.entity.BookCategory.builder()
+                .book(popular).category(computer).build();
+        when(categoryRepository.findByParentIsNullAndStatusOrderBySortOrderAscNameAsc(1))
+                .thenReturn(List.of(literature, computer));
+        when(bookCategoryRepository.findAll()).thenReturn(List.of(relation));
+
+        List<CategoryVo> result = categoryService.listFeaturedCategories(8);
+
+        assertEquals(List.of("计算机", "文学"), result.stream().map(CategoryVo::getName).toList());
+    }
 }
+

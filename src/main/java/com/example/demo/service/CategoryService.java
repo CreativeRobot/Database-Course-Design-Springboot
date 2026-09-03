@@ -2,6 +2,8 @@ package com.example.demo.service;
 
 import com.example.demo.common.exception.BusinessException;
 import com.example.demo.dto.SaveCategoryDTO;
+import com.example.demo.entity.BookCategory;
+import com.example.demo.entity.BookStatus;
 import com.example.demo.entity.Category;
 import com.example.demo.repository.BookCategoryRepository;
 import com.example.demo.repository.CategoryRepository;
@@ -13,7 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
@@ -65,6 +71,42 @@ public class CategoryService {
         return listCategoryTree(null, status);
     }
 
+    // ==================== 业务方法 ====================
+    /**
+     * 首页分类推荐：优先按在售图书累计购买量排序，销量相同再按后台排序和名称排序。
+     * 分类不足时自然返回全部可用一级分类，由前端展示实际数量。
+     */
+    @Transactional(readOnly = true)
+    public List<CategoryVo> listFeaturedCategories(int limit) {
+        if (limit < 1 || limit > 20) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "分类数量必须在1到20之间");
+        }
+        List<Category> roots = new ArrayList<>(
+                categoryRepository.findByParentIsNullAndStatusOrderBySortOrderAscNameAsc(1));
+        Map<Long, Long> salesByCategory = new HashMap<>();
+        for (BookCategory relation : bookCategoryRepository.findAll()) {
+            if (relation.getCategory() == null || relation.getBook() == null
+                    || relation.getBook().getStatus() != BookStatus.ON_SALE) {
+                continue;
+            }
+            Long categoryId = relation.getCategory().getParent() == null
+                    ? relation.getCategory().getId()
+                    : relation.getCategory().getParent().getId();
+            salesByCategory.merge(categoryId,
+                    relation.getBook().getSalesCount() == null ? 0L : relation.getBook().getSalesCount(),
+                    Long::sum);
+        }
+        roots.sort(Comparator
+                .comparingLong((Category category) -> salesByCategory.getOrDefault(category.getId(), 0L))
+                .reversed()
+                .thenComparing(Category::getSortOrder)
+                .thenComparing(Category::getName));
+        return roots.stream().limit(limit).map(this::toVo).toList();
+    }
+
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     @Transactional(readOnly = true)
     public List<CategoryVo> listCategoryTree(String keyword, Integer status) {
         List<CategoryVo> categories = listCategories(keyword, status);
@@ -73,6 +115,9 @@ public class CategoryService {
             categoriesById.put(category.getId(), category);
         }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
         List<CategoryVo> roots = new java.util.ArrayList<>();
         for (CategoryVo category : categories) {
             if (category.getParentId() == null) {
@@ -192,6 +237,9 @@ public class CategoryService {
         return parent;
     }
 
+    /**
+     * 查询并返回当前模块所需的数据。
+     */
     private Category getCategoryOrThrow(Long categoryId) {
         if (categoryId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "分类不能为空");
@@ -200,6 +248,9 @@ public class CategoryService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "分类不存在"));
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateRequest(SaveCategoryDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getName())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "分类名称不能为空");
@@ -210,12 +261,18 @@ public class CategoryService {
         validateStatus(dto.getStatus());
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private void validateStatus(Integer status) {
         if (status == null || (status != 0 && status != 1)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "分类状态只能为0或1");
         }
     }
 
+    /**
+     * 执行当前模块的辅助处理逻辑。
+     */
     private CategoryVo toVo(Category category) {
         CategoryVo vo = new CategoryVo();
         vo.setId(category.getId());
@@ -231,3 +288,4 @@ public class CategoryService {
         return vo;
     }
 }
+
