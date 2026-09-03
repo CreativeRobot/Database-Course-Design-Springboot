@@ -63,6 +63,35 @@ public class CommunityService {
         return toPostVo(getVisiblePost(postId));
     }
 
+    @Transactional(readOnly = true)
+    public PageVo<CommunityPostVo> listAdminPosts(
+            String keyword, Long userId, Integer status, int page, int size) {
+        if (userId != null && userId <= 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "用户标识不合法");
+        }
+        if (status != null && status != 0 && status != ACTIVE) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "帖子状态只能为0或1");
+        }
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        return PageVo.of(postRepository.searchForAdmin(
+                normalizedKeyword, userId, status, pageRequest(page, size)).map(this::toPostVo));
+    }
+
+    @Transactional
+    public CommunityPostVo changePostStatus(Long postId, Integer status) {
+        if (status == null || (status != 0 && status != ACTIVE)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "帖子状态只能为0或1");
+        }
+        if (postId == null || postId <= 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "帖子标识不合法");
+        }
+        CommunityPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "帖子不存在"));
+        post.setStatus(status);
+        return toPostVo(postRepository.save(post));
+    }
+
+
     @Transactional
     public CommunityPostVo createPost(Long userId, CreateCommunityPostDTO dto) {
         validatePost(userId, dto);

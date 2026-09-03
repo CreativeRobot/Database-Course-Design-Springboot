@@ -23,6 +23,19 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, Lo
             @Param("bookId") Long bookId,
             Pageable pageable);
 
+    @Query("""
+            select post from CommunityPost post
+            where (:keyword is null or lower(post.title) like lower(concat('%', :keyword, '%')))
+              and (:userId is null or post.user.id = :userId)
+              and (:status is null or post.status = :status)
+            order by post.createTime desc, post.id desc
+            """)
+    Page<CommunityPost> searchForAdmin(
+            @Param("keyword") String keyword,
+            @Param("userId") Long userId,
+            @Param("status") Integer status,
+            Pageable pageable);
+
     @Query("select post from CommunityPost post where post.id = :id and post.status = 1")
     Optional<CommunityPost> findVisibleById(@Param("id") Long id);
 }

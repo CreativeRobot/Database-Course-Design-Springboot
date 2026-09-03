@@ -19,6 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
@@ -28,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -162,6 +165,72 @@ class CommunityServiceTests {
                 BusinessException.class, () -> communityService.createPost(1L, dto));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        verify(postRepository, never()).save(any());
+    }
+
+    @Test
+    void adminListIncludesHiddenPosts() {
+        CommunityPost hiddenPost = CommunityPost.builder()
+                .id(9L)
+                .user(user)
+                .title("被屏蔽的帖子")
+                .content("仍应出现在管理列表")
+                .status(0)
+                .build();
+        when(postRepository.searchForAdmin(eq("屏蔽"), eq(1L), eq(0), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(hiddenPost)));
+
+        var result = communityService.listAdminPosts(" 屏蔽 ", 1L, 0, 1, 20);
+
+        assertEquals(1, result.getRecords().size());
+        assertEquals(0, result.getRecords().get(0).getStatus());
+        assertEquals("被屏蔽的帖子", result.getRecords().get(0).getTitle());
+    }
+
+    @Test
+    void hidesPostAndPersistsStatus() {
+        CommunityPost target = post(5L);
+        when(postRepository.findById(5L)).thenReturn(Optional.of(target));
+        when(postRepository.save(target)).thenReturn(target);
+
+        var result = communityService.changePostStatus(5L, 0);
+
+        assertEquals(0, target.getStatus());
+        assertEquals(0, result.getStatus());
+        verify(postRepository).save(target);
+    }
+
+    @Test
+    void restoresPostAndPersistsStatus() {
+        CommunityPost target = post(5L);
+        target.setStatus(0);
+        when(postRepository.findById(5L)).thenReturn(Optional.of(target));
+        when(postRepository.save(target)).thenReturn(target);
+
+        var result = communityService.changePostStatus(5L, 1);
+
+        assertEquals(1, target.getStatus());
+        assertEquals(1, result.getStatus());
+        verify(postRepository).save(target);
+    }
+
+    @Test
+    void rejectsUnsupportedPostStatus() {
+        BusinessException exception = assertThrows(
+                BusinessException.class, () -> communityService.changePostStatus(5L, 2));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        verify(postRepository, never()).findById(any());
+    }
+
+    @Test
+    void rejectsChangingStatusForUnknownPost() {
+        when(postRepository.findById(404L)).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class, () -> communityService.changePostStatus(404L, 0));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
         verify(postRepository, never()).save(any());
     }
 
