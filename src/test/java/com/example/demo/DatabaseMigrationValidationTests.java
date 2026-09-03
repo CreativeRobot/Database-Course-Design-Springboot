@@ -82,6 +82,56 @@ class DatabaseMigrationValidationTests {
         assertEquals(1, consistencyMigrationCount);
     }
 
+    @Test
+    void seedsBookFocusedCommunityDemoData() {
+        Integer demoUsers = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM users
+                WHERE username IN ('community_linan', 'community_muyu', 'community_xiaozhou', 'community_ake')
+                """, Integer.class);
+        assertEquals(4, demoUsers);
+
+        Integer demoPosts = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM community_post
+                WHERE title LIKE '【读书交流】%'
+                """, Integer.class);
+        assertEquals(10, demoPosts);
+
+        Integer linkedBooks = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM community_post_book cpb
+                JOIN community_post cp ON cp.id = cpb.post_id
+                WHERE cp.title LIKE '【读书交流】%'
+                """, Integer.class);
+        assertEquals(14, linkedBooks);
+
+        Integer postImages = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM community_post_image cpi
+                JOIN community_post cp ON cp.id = cpi.post_id
+                WHERE cp.title LIKE '【读书交流】%'
+                """, Integer.class);
+        assertEquals(9, postImages);
+
+        Integer comments = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM community_comment cc
+                JOIN community_post cp ON cp.id = cc.post_id
+                WHERE cp.title LIKE '【读书交流】%'
+                """, Integer.class);
+        assertEquals(26, comments);
+
+        Integer replies = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM community_comment cc
+                JOIN community_post cp ON cp.id = cc.post_id
+                WHERE cp.title LIKE '【读书交流】%'
+                  AND cc.parent_id IS NOT NULL
+                """, Integer.class);
+        assertEquals(6, replies);
+    }
+
     static boolean dockerIsAvailable() {
         try {
             Process process = new ProcessBuilder("docker", "version")

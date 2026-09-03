@@ -42,6 +42,12 @@ class FlywayMigrationResourceTests {
         assertTrue(applicationProperties.contains("spring.flyway.baseline-version=1"));
     }
 
+    @Test
+    void communityDemoSeedMigrationIsPackaged() throws IOException {
+        String communitySeed = readClasspathResource("db/migration/V14__seed_community_demo_data.sql");
+        assertTrue(!communitySeed.isBlank());
+    }
+
     private String readClasspathResource(String resourceName) throws IOException {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(resourceName)) {
             assertNotNull(input, () -> "Required classpath resource must exist: " + resourceName);
