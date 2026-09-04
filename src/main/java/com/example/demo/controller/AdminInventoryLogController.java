@@ -32,6 +32,7 @@ public class AdminInventoryLogController {
     @GetMapping
     public Result<PageVo<InventoryLogVo>> listLogs(
             @RequestParam(required = false) Long bookId,
+            @RequestParam(required = false) String bookName,
             @RequestParam(required = false) Long orderId,
             @RequestParam(required = false) InventoryChangeType changeType,
             @RequestParam(required = false)
@@ -41,6 +42,6 @@ public class AdminInventoryLogController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return Result.success(inventoryLogService.listLogs(
-                bookId, orderId, changeType, startTime, endTime, page, size));
+                bookId, bookName, orderId, changeType, startTime, endTime, page, size));
     }
 }

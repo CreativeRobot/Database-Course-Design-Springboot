@@ -13,5 +13,11 @@ public class OrderBundleApplicationVo {
     private BigDecimal bundlePrice;
     private BigDecimal regularAmount;
     private BigDecimal discountAmount;
+    private com.example.demo.entity.RefundStatus bundleRefundStatus;
+    private Boolean bundleRefundable;
+    private String bundleRefundUnavailableReason;
+    private BigDecimal bundleRefundAmount;
     private List<OrderBundleApplicationItemVo> items;
 }
+
+

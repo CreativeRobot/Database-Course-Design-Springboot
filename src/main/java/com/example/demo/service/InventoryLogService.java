@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -34,6 +35,7 @@ public class InventoryLogService {
     @Transactional(readOnly = true)
     public PageVo<InventoryLogVo> listLogs(
             Long bookId,
+            String bookName,
             Long orderId,
             InventoryChangeType changeType,
             LocalDateTime startTime,
@@ -42,6 +44,7 @@ public class InventoryLogService {
             int size) {
         validatePositive(bookId, "图书 ID");
         validatePositive(orderId, "订单 ID");
+        String normalizedBookName = StringUtils.hasText(bookName) ? bookName.trim() : null;
         if (startTime != null && endTime != null && !startTime.isBefore(endTime)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "开始时间必须早于结束时间");
         }
@@ -61,7 +64,7 @@ public class InventoryLogService {
                 )
         );
         return PageVo.of(inventoryLogRepository.searchForAdmin(
-                bookId, orderId, changeType, startTime, endTime, pageable
+                bookId, normalizedBookName, orderId, changeType, startTime, endTime, pageable
         ).map(this::toVo));
     }
 

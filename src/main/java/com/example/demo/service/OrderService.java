@@ -26,6 +26,7 @@ import com.example.demo.repository.InventoryLogRepository;
 import com.example.demo.repository.OrderItemRepository;
 import com.example.demo.repository.OrderBundleApplicationRepository;
 import com.example.demo.repository.OrderBundleApplicationItemRepository;
+import com.example.demo.repository.BundleRefundRequestRepository;
 import com.example.demo.repository.PaymentRepository;
 import com.example.demo.repository.UserAddressRepository;
 import com.example.demo.repository.UserRepository;
@@ -113,6 +114,12 @@ public class OrderService {
 
     @Autowired
     private BundlePricingService bundlePricingService;
+
+    @Autowired
+    private RefundAvailabilityService refundAvailabilityService;
+
+    @Autowired
+    private BundleRefundRequestRepository bundleRefundRequestRepository;
 
     // ==================== 订单写操作 ====================
 
@@ -820,6 +827,7 @@ public class OrderService {
 
 
 }
+
 
 
 

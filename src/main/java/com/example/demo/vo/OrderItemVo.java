@@ -21,4 +21,10 @@ public class OrderItemVo {
     private BigDecimal paidSubtotal;
     private Boolean preSale;
     private LocalDateTime preSaleReleaseTime;
+    private Integer bundleCoveredQuantity;
+    private Integer standaloneRefundableQuantity;
+    private Integer approvedStandaloneQuantity;
+    private Integer pendingStandaloneQuantity;
 }
+
+

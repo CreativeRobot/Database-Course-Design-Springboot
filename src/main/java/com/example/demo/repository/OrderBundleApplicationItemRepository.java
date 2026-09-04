@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface OrderBundleApplicationItemRepository extends JpaRepository<OrderBundleApplicationItem, Long> {
     List<OrderBundleApplicationItem> findByApplication_IdOrderByIdAsc(Long applicationId);
+    List<OrderBundleApplicationItem> findByOrderItem_IdOrderByIdAsc(Long orderItemId);
 }

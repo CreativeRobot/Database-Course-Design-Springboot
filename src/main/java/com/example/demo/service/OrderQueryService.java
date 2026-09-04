@@ -11,6 +11,7 @@ import com.example.demo.repository.BookOrderRepository;
 import com.example.demo.repository.OrderItemRepository;
 import com.example.demo.repository.OrderBundleApplicationRepository;
 import com.example.demo.repository.OrderBundleApplicationItemRepository;
+import com.example.demo.repository.BundleRefundRequestRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.vo.OrderItemVo;
 import com.example.demo.vo.OrderBundleApplicationVo;
@@ -38,10 +39,12 @@ public class OrderQueryService {
     private final UserRepository userRepository;
     private final OrderBundleApplicationRepository orderBundleApplicationRepository;
     private final OrderBundleApplicationItemRepository orderBundleApplicationItemRepository;
+    private final BundleRefundRequestRepository bundleRefundRequestRepository;
+    private final RefundAvailabilityService refundAvailabilityService;
 public OrderQueryService(BookOrderRepository bookOrderRepository,
                              OrderItemRepository orderItemRepository,
                              UserRepository userRepository) {
-        this(bookOrderRepository, orderItemRepository, userRepository, null, null);
+        this(bookOrderRepository, orderItemRepository, userRepository, null, null, null, null);
     }
 
     @Autowired
@@ -49,12 +52,16 @@ public OrderQueryService(BookOrderRepository bookOrderRepository,
                              OrderItemRepository orderItemRepository,
                              UserRepository userRepository,
                              OrderBundleApplicationRepository orderBundleApplicationRepository,
-                             OrderBundleApplicationItemRepository orderBundleApplicationItemRepository) {
+                             OrderBundleApplicationItemRepository orderBundleApplicationItemRepository,
+                             BundleRefundRequestRepository bundleRefundRequestRepository,
+                             RefundAvailabilityService refundAvailabilityService) {
         this.bookOrderRepository = bookOrderRepository;
         this.orderItemRepository = orderItemRepository;
         this.userRepository = userRepository;
         this.orderBundleApplicationRepository = orderBundleApplicationRepository;
         this.orderBundleApplicationItemRepository = orderBundleApplicationItemRepository;
+        this.bundleRefundRequestRepository = bundleRefundRequestRepository;
+        this.refundAvailabilityService = refundAvailabilityService;
     }
 
     // ==================== 业务方法 ====================
@@ -207,6 +214,13 @@ if (userId == null) {
         vo.setPaidSubtotal(item.getPaidSubtotal());
         vo.setPreSale(item.getPreSale());
         vo.setPreSaleReleaseTime(item.getPreSaleReleaseTime());
+        if (refundAvailabilityService != null) {
+            RefundAvailability availability = refundAvailabilityService.forItem(item);
+            vo.setBundleCoveredQuantity(availability.bundleCoveredQuantity());
+            vo.setStandaloneRefundableQuantity(availability.standaloneRefundableQuantity());
+            vo.setApprovedStandaloneQuantity(availability.approvedStandaloneQuantity());
+            vo.setPendingStandaloneQuantity(availability.pendingStandaloneQuantity());
+        }
         return vo;
     }
 
@@ -218,6 +232,13 @@ if (userId == null) {
         vo.setItems(orderBundleApplicationItemRepository == null ? List.of() :
                 orderBundleApplicationItemRepository.findByApplication_IdOrderByIdAsc(application.getId()).stream()
                         .map(this::toBundleItemVo).toList());
+        if (refundAvailabilityService != null) {
+            RefundAvailabilityService.BundleEligibility eligibility = refundAvailabilityService.forBundle(application);
+            vo.setBundleRefundStatus(eligibility.status());
+            vo.setBundleRefundable(eligibility.refundable());
+            vo.setBundleRefundUnavailableReason(eligibility.unavailableReason());
+            vo.setBundleRefundAmount(eligibility.amount());
+        }
         return vo;
     }
 
@@ -229,3 +250,5 @@ if (userId == null) {
         return vo;
     }
 }
+
+

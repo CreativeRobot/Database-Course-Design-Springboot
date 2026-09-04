@@ -32,6 +32,7 @@ public class RefundService {
     @Autowired private BookRepository bookRepository;
     @Autowired private PaymentRepository paymentRepository;
     @Autowired private InventoryLogRepository inventoryLogRepository;
+    @Autowired private RefundAvailabilityService refundAvailabilityService;
 
     // ==================== 业务方法 ====================
 
@@ -40,46 +41,38 @@ public class RefundService {
      */
     @Transactional
     public RefundRequest createRequest(Long userId, CreateRefundRequestDTO dto) {
-        BookOrder order = bookOrderRepository.findById(dto.getOrderId())
+        BookOrder order = bookOrderRepository.findByIdForUpdate(dto.getOrderId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "订单不存在"));
         if (order.getUser() == null || !userId.equals(order.getUser().getId())) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "无权申请该订单售后");
         }
         if (order.getStatus() == OrderStatus.PENDING_PAYMENT || order.getStatus() == OrderStatus.CANCELLED
-                || order.getPaidTime() == null && order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+                || (order.getPaidTime() == null && order.getStatus() == OrderStatus.PENDING_PAYMENT)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "未支付订单不能申请退款");
         }
         OrderItem item = orderItemRepository.findByIdForUpdate(dto.getOrderItemId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "订单明细不存在"));
-        int alreadyApplied = defaultZero(refundRequestRepository.sumApprovedOrPendingQuantity(item.getId()));
-        int available = item.getQuantity() - defaultZero(item.getRefundedQuantity()) - alreadyApplied;
-        if (dto.getQuantity() == null || dto.getQuantity() <= 0 || dto.getQuantity() > available) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "退款数量超过可售后数量");
+        if (item.getOrder() == null || !order.getId().equals(item.getOrder().getId())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "订单明细不属于该订单");
         }
         if (!StringUtils.hasText(dto.getReason())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "售后原因不能为空");
         }
-        BigDecimal paidSubtotal = item.getPaidSubtotal();
-        BigDecimal discountAmount = defaultMoney(item.getDiscountAmount());
-        BigDecimal amount;
-        if (paidSubtotal != null && (paidSubtotal.signum() > 0 || discountAmount.signum() > 0)) {
-            amount = paidSubtotal.multiply(BigDecimal.valueOf(dto.getQuantity()))
-                    .divide(BigDecimal.valueOf(item.getQuantity()), 8, RoundingMode.HALF_UP)
-                    .setScale(2, RoundingMode.HALF_UP);
-        } else {
-            // 兼容 V6 以前创建的历史订单：其 paid_subtotal 尚未保存。
-            amount = item.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantity()))
-                    .setScale(2, RoundingMode.HALF_UP);
+        RefundAvailability availability = refundAvailabilityService.forItem(item);
+        if (dto.getQuantity() == null || dto.getQuantity() <= 0
+                || dto.getQuantity() > availability.standaloneRefundableQuantity()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "退款数量超过可售后数量");
         }
+        BigDecimal amount = item.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantity()))
+                .setScale(2, RoundingMode.HALF_UP);
         RefundRequest request = RefundRequest.builder()
                 .refundNo(generateRefundNo())
                 .order(order).orderItem(item).user(order.getUser())
                 .type(dto.getType()).quantity(dto.getQuantity()).amount(amount)
+                .bundleAware(true)
                 .reason(dto.getReason().trim()).status(RefundStatus.PENDING).build();
         return refundRequestRepository.save(request);
-    }
-
-    /**
+    }    /**
      * 执行当前模块的业务处理逻辑。
      */
     @Transactional
@@ -224,5 +217,6 @@ public class RefundService {
     private BigDecimal defaultMoney(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
     private String trimToNull(String value) { return StringUtils.hasText(value) ? value.trim() : null; }
 }
+
 
 

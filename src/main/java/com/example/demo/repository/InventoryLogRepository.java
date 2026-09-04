@@ -31,6 +31,7 @@ public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long
             select log
             from InventoryLog log
             where (:bookId is null or log.book.id = :bookId)
+              and (:bookName is null or lower(log.book.title) like lower(concat('%', :bookName, '%')))
               and (:orderId is null or log.order.id = :orderId)
               and (:changeType is null or log.changeType = :changeType)
               and (:startTime is null or log.createTime >= :startTime)
@@ -39,6 +40,7 @@ public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long
             """)
     Page<InventoryLog> searchForAdmin(
             @Param("bookId") Long bookId,
+            @Param("bookName") String bookName,
             @Param("orderId") Long orderId,
             @Param("changeType") InventoryChangeType changeType,
             @Param("startTime") LocalDateTime startTime,

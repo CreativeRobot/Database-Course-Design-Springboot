@@ -45,6 +45,7 @@ class RefundServiceTests {
     @Mock private BookRepository bookRepository;
     @Mock private PaymentRepository paymentRepository;
     @Mock private InventoryLogRepository inventoryLogRepository;
+    @Mock private RefundAvailabilityService refundAvailabilityService;
 
     @InjectMocks private RefundService refundService;
 
@@ -73,9 +74,9 @@ class RefundServiceTests {
         OrderItem item = OrderItem.builder().id(11L).order(order).book(book)
                 .unitPrice(new BigDecimal("12.50")).quantity(2)
                 .subtotal(new BigDecimal("25.00")).build();
-        when(bookOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(bookOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
         when(orderItemRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(item));
-        when(refundRequestRepository.sumApprovedOrPendingQuantity(11L)).thenReturn(0);
+        when(refundAvailabilityService.forItem(item)).thenReturn(new RefundAvailability(0, 2, 0, 0, 2));
         when(refundRequestRepository.save(any(RefundRequest.class))).thenAnswer(i -> i.getArgument(0));
 
         CreateRefundRequestDTO dto = new CreateRefundRequestDTO();
@@ -101,9 +102,9 @@ class RefundServiceTests {
                 .unitPrice(new BigDecimal("12.50")).quantity(2)
                 .subtotal(new BigDecimal("25.00")).discountAmount(new BigDecimal("5.00"))
                 .paidSubtotal(new BigDecimal("20.00")).build();
-        when(bookOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(bookOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
         when(orderItemRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(item));
-        when(refundRequestRepository.sumApprovedOrPendingQuantity(11L)).thenReturn(0);
+        when(refundAvailabilityService.forItem(item)).thenReturn(new RefundAvailability(0, 2, 0, 0, 2));
         when(refundRequestRepository.save(any(RefundRequest.class))).thenAnswer(i -> i.getArgument(0));
         CreateRefundRequestDTO dto = new CreateRefundRequestDTO();
         dto.setOrderId(7L); dto.setOrderItemId(11L); dto.setType(RefundType.REFUND_ONLY);
@@ -111,7 +112,7 @@ class RefundServiceTests {
 
         RefundRequest result = refundService.createRequest(7L, dto);
 
-        assertEquals(new BigDecimal("10.00"), result.getAmount());
+        assertEquals(new BigDecimal("12.50"), result.getAmount());
     }
 
     @Test
@@ -162,7 +163,7 @@ class RefundServiceTests {
     @Test
     void onlyOrderOwnerCanCreateRefundRequest() {
         BookOrder order = paidOrder();
-        when(bookOrderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(bookOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
         CreateRefundRequestDTO dto = new CreateRefundRequestDTO();
         dto.setOrderId(7L);
         dto.setOrderItemId(11L);
@@ -175,12 +176,62 @@ class RefundServiceTests {
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatus());
     }
 
+
+    @Test
+    void rejectsOrderItemThatBelongsToAnotherOrderBeforeCreatingRefund() {
+        BookOrder order = paidOrder();
+        BookOrder anotherOrder = BookOrder.builder().id(10L).build();
+        OrderItem item = OrderItem.builder().id(11L).order(anotherOrder).quantity(2).build();
+        when(bookOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
+        when(orderItemRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(item));
+
+        CreateRefundRequestDTO dto = new CreateRefundRequestDTO();
+        dto.setOrderId(7L);
+        dto.setOrderItemId(11L);
+        dto.setType(RefundType.REFUND_ONLY);
+        dto.setQuantity(1);
+        dto.setReason("归属校验");
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> refundService.createRequest(7L, dto));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        verify(refundRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void standaloneRefundUsesUnbundledQuantityAndUnitPrice() {
+        BookOrder order = paidOrder();
+        Book book = Book.builder().id(9L).stock(2).build();
+        OrderItem item = OrderItem.builder().id(11L).order(order).book(book)
+                .unitPrice(new BigDecimal("12.50")).quantity(2)
+                .subtotal(new BigDecimal("25.00")).discountAmount(new BigDecimal("5.00"))
+                .paidSubtotal(new BigDecimal("20.00")).build();
+        when(bookOrderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
+        when(orderItemRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(item));
+        when(refundAvailabilityService.forItem(item)).thenReturn(new RefundAvailability(1, 1, 0, 0, 1));
+        when(refundRequestRepository.save(any(RefundRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        CreateRefundRequestDTO dto = new CreateRefundRequestDTO();
+        dto.setOrderId(7L); dto.setOrderItemId(11L); dto.setType(RefundType.REFUND_ONLY);
+        dto.setQuantity(1); dto.setReason("组合外商品退款");
+
+        RefundRequest result = refundService.createRequest(7L, dto);
+
+        assertEquals(new BigDecimal("12.50"), result.getAmount());
+        assertEquals(Boolean.TRUE, result.getBundleAware());
+        verify(refundRequestRepository).save(any(RefundRequest.class));
+    }
     private BookOrder paidOrder() {
         return BookOrder.builder().id(7L).orderNo("BS202608280001").user(User.builder().id(7L).username("customer").build())
                 .status(OrderStatus.COMPLETED).payableAmount(new BigDecimal("25.00"))
                 .refundedAmount(BigDecimal.ZERO).build();
     }
 }
+
+
+
+
 
 
 
